@@ -1,0 +1,33 @@
+# Scenario: Valid PenguinPOS Desktop & Mobile Login
+# Tagged as 'smoke' for critical build launch & authentication verification.
+id: valid_login
+name: Valid PenguinPOS login
+tags: [smoke, login, qa]
+credentials:
+  login_id: ${PENGUIN_POS_LOGIN_ID}
+  password: ${PENGUIN_POS_LOGIN_PASSWORD}
+steps:
+  - inspect_widget_tree: true
+  - enter_text:
+      key: login.id
+      value: ${PENGUIN_POS_LOGIN_ID}
+  - enter_text:
+      key: login.password
+      value: ${PENGUIN_POS_LOGIN_PASSWORD}
+  - tap:
+      key: login.submit
+  - wait_for:
+      key: login.terminal.continue
+      timeout_seconds: 45
+  - tap:
+      key: login.terminal.continue
+  - wait_for:
+      key: home.screen
+      timeout_seconds: 45
+assertions:
+  - login_api:
+      method: POST
+      path: /login
+      status: 200
+  - widget_present: login.terminal.continue
+  - widget_present: home.screen

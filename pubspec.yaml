@@ -1,0 +1,31 @@
+name: penguin_pos_qa_agent
+description: LLM-callable login QA agent for PenguinPOS Flutter desktop builds.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  excel: ^4.0.6
+  file_picker: ^11.0.3
+  flutter:
+    sdk: flutter
+  flutter_driver:
+    sdk: flutter
+  http: ^1.5.0
+  shared_preferences: ^2.5.4
+  window_manager: ^0.5.1
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+# Bundles the Material icon font used throughout the desktop UI. A full app
+# restart after this change is required for replacement-glyph icons to clear.
+flutter:
+  uses-material-design: true
+
+executables:
+  qa-agent: qa_agent

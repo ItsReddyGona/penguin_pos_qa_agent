@@ -1,0 +1,12 @@
+// {
+//   "mcpServers": {
+//     "penguin-pos-qa": {
+//       "command": "/Users/reddygona/Documents/Development/flutter/bin/dart",
+//       "args": ["run", "bin/qa_agent_mcp.dart"],
+//       "cwd": "/Users/reddygona/Documents/PenguinPOS QA_Agent",
+//       "env": {
+//         "PENGUIN_POS_ROOT": "/Users/reddygona/Documents/PenguinPOS/penguin_pos"
+//       }
+//     }
+//   }
+// }
