@@ -8,6 +8,7 @@ import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/repository/qa_targ
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/ssh_settings_tab.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });

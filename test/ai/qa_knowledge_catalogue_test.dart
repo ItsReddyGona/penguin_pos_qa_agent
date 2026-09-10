@@ -15,6 +15,7 @@ void main() {
       expect(catalogue.supportedFeatureLabels, <String>[
         'Login & Terminal',
         'Order & Cash Payment',
+        'Register Management',
       ]);
     });
 

@@ -162,7 +162,7 @@ void main() {
       expect(response.kind, AiAssistantResponseKind.knowledge);
       expect(response.canExecute, isFalse);
       expect(response.knowledge!.title, 'Runnable QA suites');
-      expect(response.knowledge!.sections, hasLength(2));
+      expect(response.knowledge!.sections, hasLength(4));
     },
   );
 

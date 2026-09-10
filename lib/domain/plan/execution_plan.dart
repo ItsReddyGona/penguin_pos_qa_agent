@@ -6,16 +6,22 @@ import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 /// credentials, model prompts, driver commands, or UI-only state.
 enum QaSuiteId {
   loginTerminal,
-  orderCheckout;
+  orderCheckout,
+  register,
+  closeRegister;
 
   String get storageValue => switch (this) {
     QaSuiteId.loginTerminal => 'login_terminal',
     QaSuiteId.orderCheckout => 'order_checkout',
+    QaSuiteId.register => 'register',
+    QaSuiteId.closeRegister => 'close_register',
   };
 
   static QaSuiteId? fromStorageValue(String value) => switch (value) {
     'login_terminal' => QaSuiteId.loginTerminal,
     'order_checkout' => QaSuiteId.orderCheckout,
+    'register' => QaSuiteId.register,
+    'close_register' => QaSuiteId.closeRegister,
     _ => null,
   };
 }

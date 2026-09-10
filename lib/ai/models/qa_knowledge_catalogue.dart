@@ -16,8 +16,9 @@ class QaKnowledgeCatalogue {
   final List<QaKnowledgeSuite> suites;
 
   /// Feature names available to the assistant, in the same order as the UI.
-  List<String> get supportedFeatureLabels =>
-      List<String>.unmodifiable(suites.map((suite) => suite.featureLabel));
+  List<String> get supportedFeatureLabels => List<String>.unmodifiable(
+    suites.map((suite) => suite.featureLabel).toSet(),
+  );
 
   /// A concise, source-backed answer for a generic help request.
   String get helpText {
@@ -63,8 +64,10 @@ class QaKnowledgeCatalogue {
     if (matches.isEmpty) return const <QaKnowledgeSuite>[];
 
     matches.sort((left, right) => right.score.compareTo(left.score));
+    final topScore = matches.first.score;
+    final bestMatches = matches.where((match) => match.score == topScore);
     return List<QaKnowledgeSuite>.unmodifiable(
-      matches.map((match) => match.suite),
+      bestMatches.map((match) => match.suite),
     );
   }
 

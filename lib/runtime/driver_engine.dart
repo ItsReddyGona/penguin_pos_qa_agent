@@ -205,6 +205,12 @@ class DriverEngine implements Driver {
     final driver = _driver;
     if (driver == null) throw StateError('Driver is not connected');
     debugPrint('[DriverEngine] enterText("$key", ${text.length} chars)');
+    try {
+      await driver.scrollIntoView(
+        find.byValueKey(key),
+        timeout: const Duration(seconds: 1),
+      );
+    } catch (_) {}
     await driver.tap(find.byValueKey(key), timeout: timeout);
     await driver.enterText(text, timeout: timeout);
   }
@@ -320,6 +326,12 @@ class DriverEngine implements Driver {
   Future<void> tap(String key) async {
     final driver = _driver;
     if (driver == null) throw StateError('Driver is not connected');
+    try {
+      await driver.scrollIntoView(
+        find.byValueKey(key),
+        timeout: const Duration(seconds: 1),
+      );
+    } catch (_) {}
     await driver.tap(find.byValueKey(key));
   }
 
@@ -327,6 +339,12 @@ class DriverEngine implements Driver {
   Future<void> tapText(String text) async {
     final driver = _driver;
     if (driver == null) throw StateError('Driver is not connected');
+    try {
+      await driver.scrollIntoView(
+        find.text(text),
+        timeout: const Duration(seconds: 1),
+      );
+    } catch (_) {}
     await driver.tap(find.text(text));
   }
 
@@ -339,6 +357,12 @@ class DriverEngine implements Driver {
     if (driver == null) return false;
     try {
       await driver.waitFor(find.text(text), timeout: timeout);
+      try {
+        await driver.scrollIntoView(
+          find.text(text),
+          timeout: const Duration(seconds: 1),
+        );
+      } catch (_) {}
       await driver.tap(find.text(text));
       return true;
     } catch (error) {
@@ -356,6 +380,12 @@ class DriverEngine implements Driver {
     if (driver == null) return false;
     try {
       await driver.waitFor(find.byValueKey(key), timeout: timeout);
+      try {
+        await driver.scrollIntoView(
+          find.byValueKey(key),
+          timeout: const Duration(seconds: 1),
+        );
+      } catch (_) {}
       await driver.tap(find.byValueKey(key));
       return true;
     } catch (error) {

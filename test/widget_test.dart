@@ -156,7 +156,7 @@ void main() {
             noticeDisplayMode: QaTestNoticeDisplayMode.warningsAndErrors,
 
             flutterPath: 'flutter',
-            appRoot: '/Users/reddygona/Documents/PenguinPOS/penguin_pos',
+            appRoot: '/Users/reddygona/Documents/PenguinPOS',
             onProfileSelected: (_) {},
             onProfilesUpdated: (_) {},
             onAiModelConfigUpdated: (_) {},

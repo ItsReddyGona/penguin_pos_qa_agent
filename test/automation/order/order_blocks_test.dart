@@ -15,6 +15,7 @@ import 'package:penguin_pos_qa_agent/automation/order/order_keys.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_run_state.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_state_snapshot.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_keys.dart';
 
 class FakeOrderDriver implements Driver {
   final List<String> tappedKeys = <String>[];
@@ -222,6 +223,50 @@ void main() {
         expect(
           state.stepMetrics.first.stepName,
           equals('Start Sale & Customer Selection'),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock detects register closed, clicks open register, runs OpenRegisterBlock, and proceeds to start sale',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderOpenRegister] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.registerScreen] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.inputOpeningFloat] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.registerSubmit] = true;
+        driver.activeKeys[PenguinPosOrderKeys.orderScreen] = true;
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_reg',
+          name: 'Register Recovery Test',
+          items: [],
+          openingFloatAmount: 1500.0,
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.orderOpenRegister),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosRegisterKeys.inputOpeningFloat),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosRegisterKeys.inputOpeningFloat}:1500'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosRegisterKeys.registerSubmit),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.continueWithoutCustomer),
         );
       },
     );

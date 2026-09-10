@@ -1,7 +1,10 @@
 /// Stable widget keys forming the Order & Cash Payment QA contract with PenguinPOS.
 abstract final class PenguinPosOrderKeys {
   static const homeOrderTab = 'home.tab.order';
+  static const homeRegisterTab = 'home.tab.register';
   static const orderScreen = 'order.screen';
+  static const orderRegisterClosed = 'order.register.closed';
+  static const orderOpenRegister = 'order.open_register';
   static const orderSaleStart = 'order.sale.start';
   static const continueWithoutCustomer = 'sale.continuewithoutcustomer';
   static const orderTable = 'order.table';

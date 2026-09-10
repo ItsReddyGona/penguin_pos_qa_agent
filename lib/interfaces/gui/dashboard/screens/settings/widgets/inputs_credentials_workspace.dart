@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_profile.dart';
+import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repository.dart';
+import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/close_register_inputs_settings_tab.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/inputs_credentials_settings_tab.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/order_inputs_settings_tab.dart';
+import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/register_inputs_settings_tab.dart';
 
 class InputsCredentialsWorkspace extends StatefulWidget {
   const InputsCredentialsWorkspace({
@@ -14,7 +17,10 @@ class InputsCredentialsWorkspace extends StatefulWidget {
     required this.saveOrderItems,
     required this.loadOrderCases,
     required this.saveOrderCases,
+    this.loadRegisterInput,
+    this.saveRegisterInput,
     required this.onProfileChanged,
+    this.initialTabIndex = 0,
   });
 
   final List<QaProfile> profiles;
@@ -25,7 +31,10 @@ class InputsCredentialsWorkspace extends StatefulWidget {
   final OrderInputsSaver saveOrderItems;
   final OrderCasesLoader loadOrderCases;
   final OrderCasesSaver saveOrderCases;
+  final RegisterInputLoader? loadRegisterInput;
+  final RegisterInputSaver? saveRegisterInput;
   final ValueChanged<QaProfile> onProfileChanged;
+  final int initialTabIndex;
 
   @override
   State<InputsCredentialsWorkspace> createState() =>
@@ -34,7 +43,11 @@ class InputsCredentialsWorkspace extends StatefulWidget {
 
 class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  late final TabController _tabs = TabController(
+    length: 4,
+    vsync: this,
+    initialIndex: widget.initialTabIndex.clamp(0, 3),
+  );
 
   @override
   void dispose() {
@@ -63,7 +76,7 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Configure reusable manual inputs for Login and Order test suites.',
+                  'Configure reusable manual inputs for Login, Order, Open Register, and Close Register test suites.',
                   style: TextStyle(fontSize: 13.5, color: Color(0xFF787A76)),
                 ),
               ],
@@ -115,7 +128,7 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
       Container(
         key: const ValueKey<String>('inputs-credentials-segmented-tabs'),
         height: 42,
-        width: 340,
+        width: 600,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: const Color(0xFFE9E9EE),
@@ -141,6 +154,8 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
           tabs: const <Widget>[
             Tab(text: 'Login'),
             Tab(text: 'Order Inputs'),
+            Tab(text: 'Open Register'),
+            Tab(text: 'Close Register'),
           ],
         ),
       ),
@@ -165,6 +180,20 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
               saveItems: widget.saveOrderItems,
               loadCases: widget.loadOrderCases,
               saveCases: widget.saveOrderCases,
+              onProfileChanged: widget.onProfileChanged,
+            ),
+            RegisterInputsSettingsTab(
+              profiles: widget.profiles,
+              selectedProfile: widget.selectedProfile,
+              loadInput: widget.loadRegisterInput,
+              saveInput: widget.saveRegisterInput,
+              onProfileChanged: widget.onProfileChanged,
+            ),
+            CloseRegisterInputsSettingsTab(
+              profiles: widget.profiles,
+              selectedProfile: widget.selectedProfile,
+              loadInput: widget.loadRegisterInput,
+              saveInput: widget.saveRegisterInput,
               onProfileChanged: widget.onProfileChanged,
             ),
           ],

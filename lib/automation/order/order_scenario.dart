@@ -296,6 +296,7 @@ class OrderScenario {
     this.perIterationItems = const <int, List<OrderItem>>{},
     this.rawJson = defaultSampleJson,
     this.rawCsv = defaultSampleCsv,
+    this.openingFloatAmount = 0.0,
   });
 
   final String id;
@@ -310,6 +311,7 @@ class OrderScenario {
   final Map<int, List<OrderItem>> perIterationItems;
   final String rawJson;
   final String rawCsv;
+  final double openingFloatAmount;
 
   static final OrderScenario sampleScenario = OrderScenario(
     id: 'order_cash_payment_default',
@@ -507,6 +509,7 @@ class OrderScenario {
     ),
     'rawJson': rawJson,
     'rawCsv': rawCsv,
+    'openingFloatAmount': openingFloatAmount,
   };
 
   factory OrderScenario.fromJson(Map<String, Object?> json) {
@@ -544,6 +547,8 @@ class OrderScenario {
       perIterationItems: perIterationItems,
       rawJson: (json['rawJson'] as String?) ?? defaultSampleJson,
       rawCsv: (json['rawCsv'] as String?) ?? defaultSampleCsv,
+      openingFloatAmount:
+          (json['openingFloatAmount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

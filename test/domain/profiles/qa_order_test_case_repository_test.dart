@@ -5,6 +5,7 @@ import 'package:penguin_pos_qa_agent/domain/test_cases/order_test_case.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
   test('round trips order metadata and SKU items per profile', () async {

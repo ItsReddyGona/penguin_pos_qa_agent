@@ -350,6 +350,113 @@ class TestSuiteItem {
         ),
       ],
     ),
+    TestSuiteItem(
+      id: 'register',
+      title: 'Open Register',
+      description:
+          'Automates cash register opening, initial float cash submission (₹0–₹5,000), and POS state verification.',
+      icon: Icons.point_of_sale_rounded,
+      isImplemented: true,
+      feature: 'Register Management',
+      purpose:
+          'Verify opening the cash register with a configured opening float cash amount and transitioning cleanly to the order table.',
+      searchAliases: <String>[
+        'register',
+        'open register',
+        'float',
+        'drawer',
+        'opening float',
+      ],
+      scenarios: <TestSuiteScenario>[
+        TestSuiteScenario(
+          id: 'open_register',
+          name: 'Open Register Flow',
+          tags: <String>['register', 'float', 'drawer'],
+          stepsDescription: <String>[
+            'Launch PenguinPOS and verify authentication',
+            'Probe UI state; navigate to Register via order button or home tab',
+            'Enter configured opening float amount in cash input field',
+            'Tap Open Register submit button',
+            'Verify transition back to Order Screen with active register session',
+          ],
+          purpose:
+              'Confirm cash drawer opening float submission and POS state transition.',
+          preconditions: <String>[
+            'PenguinPOS is logged in and terminal selected.',
+            'Cash register is currently closed.',
+          ],
+          expectedOutcomes: <String>[
+            'Opening float cash is accepted without validation error.',
+            'Register state transitions to open in PenguinPOS.',
+            'Active view returns to the Order Table ready for transactions.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+          ],
+          searchAliases: <String>[
+            'open register',
+            'opening float',
+            'drawer open',
+          ],
+        ),
+      ],
+    ),
+    TestSuiteItem(
+      id: 'close_register',
+      title: 'Close Register',
+      description:
+          'Automates cash register closing with target total cash amount, payment modes verification, and denominations distribution.',
+      icon: Icons.point_of_sale_outlined,
+      isImplemented: true,
+      feature: 'Register Management',
+      purpose:
+          'Verify closing the cash register with a configured total amount, ensuring all payment summary fields and denomination counts are filled and submitted cleanly.',
+      searchAliases: <String>[
+        'close register',
+        'register close',
+        'reconciliation',
+        'cash closing',
+        'total amount',
+      ],
+      scenarios: <TestSuiteScenario>[
+        TestSuiteScenario(
+          id: 'close_register_flow',
+          name: 'Close Register Flow',
+          tags: <String>['register', 'close', 'cash', 'denominations'],
+          stepsDescription: <String>[
+            'Verify register screen is active (or navigate via home tab)',
+            'Check and fill Closing Float Cash if present',
+            'Check and fill payment gateway fields (PineLabs Card/UPI, RazorPay, Paytm, etc.) if present',
+            'Distribute configured Total Cash Amount across Note and Coin denominations',
+            'Verify calculated Total Cash display matches expected total',
+            'Tap Close Register submit button',
+            'Confirm register closed successfully',
+          ],
+          purpose:
+              'Confirm cash drawer closing submission with all required denominations and payment gateway fields filled.',
+          preconditions: <String>[
+            'PenguinPOS is logged in and terminal selected.',
+            'Cash register is currently open.',
+          ],
+          expectedOutcomes: <String>[
+            'Payment summary gateway fields (amount & count) are filled.',
+            'Cash denominations match configured total cash amount.',
+            'Close Register button enables and successfully submits.',
+            'Register state transitions to closed.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+          ],
+          searchAliases: <String>[
+            'close register',
+            'cash reconciliation',
+            'drawer close',
+          ],
+        ),
+      ],
+    ),
     // TestSuiteItem(
     //   id: 'api_regression',
     //   title: 'API Regression',

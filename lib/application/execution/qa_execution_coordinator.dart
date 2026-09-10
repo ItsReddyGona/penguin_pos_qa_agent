@@ -6,13 +6,17 @@ import 'package:penguin_pos_qa_agent/automation/login/login_runner.dart';
 import 'package:penguin_pos_qa_agent/automation/login/login_scenario.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_runner.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_runner.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_scenario.dart';
 import 'package:penguin_pos_qa_agent/automation/core/qa_test_notice.dart';
 import 'package:penguin_pos_qa_agent/automation/core/telemetry/api_trace_collector.dart';
 import 'package:penguin_pos_qa_agent/core/secret_redactor.dart';
 import 'package:penguin_pos_qa_agent/domain/plan/execution_plan.dart';
+import 'package:penguin_pos_qa_agent/domain/suites/qa_suite_registry.dart';
 import 'package:penguin_pos_qa_agent/domain/test_cases/login_test_case.dart';
 import 'package:penguin_pos_qa_agent/runtime/app_target_handle.dart';
 import 'package:penguin_pos_qa_agent/runtime/app_launcher.dart';
+import 'package:penguin_pos_qa_agent/runtime/driver_engine.dart';
 
 enum ExecutionTargetMode { local, ssh }
 
@@ -71,6 +75,7 @@ class PreparedExecution {
     this.configuredLoginCases = const <LoginTestCaseDefinition>[],
     this.loginRepeatCount = 1,
     this.orderScenario,
+    this.registerScenario,
     this.telemetryCollector,
     this.noticeDisplayMode = QaTestNoticeDisplayMode.warningsAndErrors,
   });
@@ -88,6 +93,7 @@ class PreparedExecution {
   final List<LoginTestCaseDefinition> configuredLoginCases;
   final int loginRepeatCount;
   final OrderScenario? orderScenario;
+  final RegisterScenario? registerScenario;
   final ApiTraceCollector? telemetryCollector;
   final QaTestNoticeDisplayMode noticeDisplayMode;
 }
@@ -186,6 +192,7 @@ class ExecutionPlanResult {
     this.orderSummary,
     this.loginResult,
     this.orderResult,
+    this.registerResult,
   });
 
   final ExecutionPlan plan;
@@ -203,6 +210,7 @@ class ExecutionPlanResult {
   final ExecutionOrderSummary? orderSummary;
   final LoginRunResult? loginResult;
   final OrderRunResult? orderResult;
+  final RegisterRunResult? registerResult;
 
   Duration get duration => finishedAt.difference(startedAt);
 }
@@ -493,6 +501,25 @@ class QaExecutionCoordinator {
           cleanupDetail: result.cleanupDetail,
           loginResult: result,
         );
+      }
+
+      if (execution.plan.suiteId == QaSuiteId.register ||
+          execution.plan.suiteId == QaSuiteId.closeRegister) {
+        final registerSuite = QaSuiteRegistry.instance.get(
+          execution.plan.suiteId,
+        );
+        if (registerSuite != null) {
+          return await cancellation.race(
+            cancellation.run(
+              () => registerSuite.execute(
+                driver: DriverEngine(),
+                vmServiceUri: target.vmServiceUri,
+                execution: execution,
+                callbacks: callbacks,
+              ),
+            ),
+          );
+        }
       }
 
       final order =
