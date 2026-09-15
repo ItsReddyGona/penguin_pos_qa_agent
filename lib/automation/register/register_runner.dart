@@ -10,6 +10,7 @@ import 'package:penguin_pos_qa_agent/automation/register/blocks/close_register_b
 import 'package:penguin_pos_qa_agent/automation/register/blocks/open_register_block.dart';
 import 'package:penguin_pos_qa_agent/automation/register/register_keys.dart';
 import 'package:penguin_pos_qa_agent/automation/register/register_scenario.dart';
+import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repository.dart';
 
 class RegisterRunResult {
   const RegisterRunResult({
@@ -173,9 +174,20 @@ class RegisterRunner {
         'Connected to PenguinPOS Flutter Driver.',
       );
 
+      final total =
+          (scenario.closeNotesMap.isNotEmpty ||
+              scenario.closeCoinsMap.isNotEmpty)
+          ? QaRegisterInput.computeTotalFromBreakdown(
+              scenario.closeNotesMap,
+              scenario.closeCoinsMap,
+            )
+          : scenario.effectiveCloseTotalAmount;
+
       final block = CloseRegisterBlock(
         totalAmount: scenario.closeTotalAmount,
-        closingFloatAmount: 0.0,
+        closingFloatAmount: total.toDouble(),
+        notesMap: scenario.closeNotesMap,
+        coinsMap: scenario.closeCoinsMap,
       );
       await block.execute(execContext);
 
@@ -184,7 +196,7 @@ class RegisterRunner {
         startedAt: startedAt,
         finishedAt: DateTime.now(),
         passed: true,
-        totalAmount: scenario.effectiveCloseTotalAmount,
+        totalAmount: total,
       );
     } catch (e) {
       final errorMessage = e.toString();

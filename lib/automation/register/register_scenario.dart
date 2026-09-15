@@ -5,6 +5,8 @@ class RegisterScenario {
     this.name = 'Open Register Flow',
     this.openingFloatAmount = 0.0,
     this.closeTotalAmount = 1000.0,
+    this.closeNotesMap = const <int, int>{},
+    this.closeCoinsMap = const <int, int>{},
     this.notes = '',
   });
 
@@ -12,6 +14,8 @@ class RegisterScenario {
   final String name;
   final double openingFloatAmount;
   final double closeTotalAmount;
+  final Map<int, int> closeNotesMap;
+  final Map<int, int> closeCoinsMap;
   final String notes;
 
   static const double minFloat = 0.0;
@@ -27,6 +31,8 @@ class RegisterScenario {
     String? name,
     double? openingFloatAmount,
     double? closeTotalAmount,
+    Map<int, int>? closeNotesMap,
+    Map<int, int>? closeCoinsMap,
     String? notes,
   }) {
     return RegisterScenario(
@@ -34,6 +40,8 @@ class RegisterScenario {
       name: name ?? this.name,
       openingFloatAmount: openingFloatAmount ?? this.openingFloatAmount,
       closeTotalAmount: closeTotalAmount ?? this.closeTotalAmount,
+      closeNotesMap: closeNotesMap ?? this.closeNotesMap,
+      closeCoinsMap: closeCoinsMap ?? this.closeCoinsMap,
       notes: notes ?? this.notes,
     );
   }

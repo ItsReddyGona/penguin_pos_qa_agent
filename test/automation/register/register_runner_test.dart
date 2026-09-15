@@ -71,13 +71,15 @@ class FakeRegisterDriver implements Driver {
     return false;
   }
 
+  String cashTotalDisplay = '₹2000.00';
+
   @override
   Future<String?> tryGetText(
     String key, {
     Duration timeout = const Duration(seconds: 3),
   }) async {
     if (key == PenguinPosRegisterKeys.cashTotal) {
-      return '₹2000.00';
+      return cashTotalDisplay;
     }
     return null;
   }
@@ -431,6 +433,59 @@ void main() {
         expect(
           driver.enteredTexts,
           isNot(contains('${PenguinPosRegisterKeys.cashNotes(2000)}:0')),
+        );
+        expect(
+          driver.enteredTexts,
+          isNot(contains('${PenguinPosRegisterKeys.cashNotes(2)}:0')),
+        );
+        expect(
+          driver.enteredTexts,
+          isNot(contains('${PenguinPosRegisterKeys.cashNotes(1)}:0')),
+        );
+        expect(
+          driver.enteredTexts,
+          isNot(contains('${PenguinPosRegisterKeys.cashCoins(50)}:0')),
+        );
+        expect(
+          driver.enteredTexts,
+          isNot(contains('${PenguinPosRegisterKeys.cashCoins(500)}:0')),
+        );
+      },
+    );
+
+    test(
+      'CloseRegisterBlock populates custom notesMap and coinsMap and verifies sum and closing float',
+      () async {
+        driver.activeKeys[PenguinPosRegisterKeys.registerScreen] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.inputOpeningFloat] = false;
+        driver.activeKeys[PenguinPosRegisterKeys.inputClosingFloat] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.registerSubmit] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.cashTotal] = true;
+
+        driver.activeKeys[PenguinPosRegisterKeys.cashNotes(500)] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.cashCoins(10)] = true;
+        driver.cashTotalDisplay = '₹2050.00';
+
+        const block = CloseRegisterBlock(
+          notesMap: <int, int>{500: 4},
+          coinsMap: <int, int>{10: 5},
+        );
+        final context = ExecutionContext(driver: driver);
+
+        await block.execute(context);
+
+        // Verify closing float receives total cash
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosRegisterKeys.inputClosingFloat}:2050'),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosRegisterKeys.cashNotes(500)}:4'),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosRegisterKeys.cashCoins(10)}:5'),
         );
       },
     );

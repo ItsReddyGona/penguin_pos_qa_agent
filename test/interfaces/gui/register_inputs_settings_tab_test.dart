@@ -187,4 +187,132 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'CloseRegisterInputsSettingsTab updates total amount dynamically when typing notes and coins',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      QaRegisterInput? savedInput;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: CloseRegisterInputsSettingsTab(
+                profiles: QaProfile.values,
+                selectedProfile: QaProfile.values.first,
+                loadInput: (_) async => const QaRegisterInput(
+                  closeTotalAmount: 0.0,
+                  closeNotesMap: <int, int>{},
+                  closeCoinsMap: <int, int>{},
+                ),
+                saveInput: (_, input) async {
+                  savedInput = input;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify ₹2000 is completely absent
+      expect(
+        find.byKey(const ValueKey<String>('close-register-note-2000')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-2000')),
+        findsNothing,
+      );
+
+      // Verify coins for denominations >= 50 are absent
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-500')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-200')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-100')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-50')),
+        findsNothing,
+      );
+
+      // Verify coins for denominations <= 20 are present
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-20')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-10')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-5')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-coin-1')),
+        findsOneWidget,
+      );
+
+      // Verify notes for denomination 5 is present, and < 5 (2, 1) are absent
+      expect(
+        find.byKey(const ValueKey<String>('close-register-note-5')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-note-2')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('close-register-note-1')),
+        findsNothing,
+      );
+
+      // Enter 2 notes of 500
+      final note500Finder = find.byKey(
+        const ValueKey<String>('close-register-note-500'),
+      );
+      expect(note500Finder, findsOneWidget);
+      await tester.enterText(note500Finder, '2');
+      await tester.pumpAndSettle();
+
+      // Enter 5 coins of 10
+      final coin10Finder = find.byKey(
+        const ValueKey<String>('close-register-coin-10'),
+      );
+      expect(coin10Finder, findsOneWidget);
+      await tester.enterText(coin10Finder, '5');
+      await tester.pumpAndSettle();
+
+      // Total sum should be (2 * 500) + (5 * 10) = 1050
+      expect(find.text('1050'), findsOneWidget);
+      expect(find.text('Sum: ₹1050'), findsOneWidget);
+
+      // Save
+      await tester.tap(
+        find.byKey(const ValueKey<String>('save-close-register-inputs')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(savedInput, isNotNull);
+      expect(savedInput!.closeTotalAmount, 1050.0);
+      expect(savedInput!.closeNotesMap[500], 2);
+      expect(savedInput!.closeCoinsMap[10], 5);
+    },
+  );
 }

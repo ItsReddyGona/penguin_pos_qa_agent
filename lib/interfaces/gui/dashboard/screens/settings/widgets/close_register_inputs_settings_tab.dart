@@ -31,10 +31,16 @@ class _CloseRegisterInputsSettingsTabState
   final _amountController = TextEditingController(text: '1000');
   final _notesController = TextEditingController();
 
+  final Map<int, TextEditingController> _noteControllers =
+      <int, TextEditingController>{};
+  final Map<int, TextEditingController> _coinControllers =
+      <int, TextEditingController>{};
+
   bool _loading = true;
   bool _saving = false;
   String? _statusMessage;
   bool _statusIsError = false;
+  bool _isUpdatingFromDenominations = false;
 
   static const double _minAmount = QaRegisterInput.minCloseAmount;
   static const double _maxAmount = QaRegisterInput.maxCloseAmount;
@@ -42,6 +48,14 @@ class _CloseRegisterInputsSettingsTabState
   @override
   void initState() {
     super.initState();
+    for (final d in QaRegisterInput.supportedDenominations) {
+      if (QaRegisterInput.hasNotes(d)) {
+        _noteControllers[d] = TextEditingController(text: '0');
+      }
+      if (QaRegisterInput.hasCoins(d)) {
+        _coinControllers[d] = TextEditingController(text: '0');
+      }
+    }
     _load();
   }
 
@@ -57,6 +71,12 @@ class _CloseRegisterInputsSettingsTabState
   void dispose() {
     _amountController.dispose();
     _notesController.dispose();
+    for (final c in _noteControllers.values) {
+      c.dispose();
+    }
+    for (final c in _coinControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -78,6 +98,35 @@ class _CloseRegisterInputsSettingsTabState
 
     if (!mounted) return;
     final clamped = input.closeTotalAmount.clamp(_minAmount, _maxAmount);
+
+    for (final d in QaRegisterInput.supportedDenominations) {
+      if (QaRegisterInput.hasNotes(d)) {
+        _noteControllers[d]!.text = (input.closeNotesMap[d] ?? 0).toString();
+      }
+      if (QaRegisterInput.hasCoins(d)) {
+        _coinControllers[d]!.text = (input.closeCoinsMap[d] ?? 0).toString();
+      }
+    }
+
+    // If both maps are empty and there was an existing positive total amount,
+    // initialize breakdown greedily so counts immediately match the total.
+    if (input.closeNotesMap.isEmpty &&
+        input.closeCoinsMap.isEmpty &&
+        clamped > 0) {
+      var rem = clamped.toInt();
+      for (final d in QaRegisterInput.supportedDenominations) {
+        final count = rem ~/ d;
+        rem %= d;
+        if (QaRegisterInput.hasNotes(d)) {
+          _noteControllers[d]!.text = count.toString();
+        }
+        if (QaRegisterInput.hasCoins(d)) {
+          _coinControllers[d]!.text = (!QaRegisterInput.hasNotes(d) ? count : 0)
+              .toString();
+        }
+      }
+    }
+
     setState(() {
       _amountController.text = _formatAmount(clamped);
       _notesController.text = input.closeNotes;
@@ -92,10 +141,51 @@ class _CloseRegisterInputsSettingsTabState
     return val.toStringAsFixed(2);
   }
 
+  int get _computedTotal {
+    var sum = 0;
+    for (final d in QaRegisterInput.supportedDenominations) {
+      final n = QaRegisterInput.hasNotes(d)
+          ? (int.tryParse(_noteControllers[d]?.text.trim() ?? '0') ?? 0)
+          : 0;
+      final c = QaRegisterInput.hasCoins(d)
+          ? (int.tryParse(_coinControllers[d]?.text.trim() ?? '0') ?? 0)
+          : 0;
+      sum += (d * n) + (d * c);
+    }
+    return sum;
+  }
+
+  void _onDenominationChanged() {
+    _isUpdatingFromDenominations = true;
+    final sum = _computedTotal;
+    _amountController.text = sum.toString();
+    _isUpdatingFromDenominations = false;
+    if (_statusMessage != null) {
+      setState(() => _statusMessage = null);
+    } else {
+      setState(() {});
+    }
+  }
+
   void _onAmountTextChanged(String text) {
+    if (_isUpdatingFromDenominations) return;
     if (_statusMessage != null) {
       setState(() => _statusMessage = null);
     }
+    final parsed = double.tryParse(text.trim())?.toInt() ?? 0;
+    var rem = parsed;
+    for (final d in QaRegisterInput.supportedDenominations) {
+      final count = rem ~/ d;
+      rem %= d;
+      if (QaRegisterInput.hasNotes(d)) {
+        _noteControllers[d]!.text = count.toString();
+      }
+      if (QaRegisterInput.hasCoins(d)) {
+        _coinControllers[d]!.text = (!QaRegisterInput.hasNotes(d) ? count : 0)
+            .toString();
+      }
+    }
+    setState(() {});
   }
 
   String? _validateAmount(String? value) {
@@ -121,6 +211,19 @@ class _CloseRegisterInputsSettingsTabState
     final parsedAmount =
         double.tryParse(_amountController.text.trim()) ?? 1000.0;
 
+    final notesMap = <int, int>{};
+    final coinsMap = <int, int>{};
+    for (final d in QaRegisterInput.supportedDenominations) {
+      if (QaRegisterInput.hasNotes(d)) {
+        final n = int.tryParse(_noteControllers[d]?.text.trim() ?? '0') ?? 0;
+        if (n > 0) notesMap[d] = n;
+      }
+      if (QaRegisterInput.hasCoins(d)) {
+        final c = int.tryParse(_coinControllers[d]?.text.trim() ?? '0') ?? 0;
+        if (c > 0) coinsMap[d] = c;
+      }
+    }
+
     setState(() {
       _saving = true;
       _statusMessage = null;
@@ -136,6 +239,8 @@ class _CloseRegisterInputsSettingsTabState
 
       final input = currentInput.copyWith(
         closeTotalAmount: parsedAmount,
+        closeNotesMap: notesMap,
+        closeCoinsMap: coinsMap,
         closeNotes: _notesController.text.trim(),
       );
 
@@ -205,7 +310,7 @@ class _CloseRegisterInputsSettingsTabState
               ),
               hintText: 'Enter closing total cash amount',
               helperText:
-                  'This total cash will be automatically distributed into notes and coins denominations to close the register.',
+                  'This total cash will be automatically distributed into notes and coins denominations below, or calculated from your inputs.',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -216,6 +321,228 @@ class _CloseRegisterInputsSettingsTabState
             ),
             validator: _validateAmount,
             onChanged: _onAmountTextChanged,
+          ),
+          const SizedBox(height: 20),
+
+          // Cash Denominations Section (Notes & Coins)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              const Text(
+                'Notes & Coins Breakdown',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
+                ),
+              ),
+              Text(
+                'Sum: ₹$_computedTotal',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2E7D32),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              children: <Widget>[
+                // Table header
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          'Denom',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          'Notes Count',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          'Coins Count',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          'Subtotal',
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 12, thickness: 1),
+                // Denomination rows
+                ...QaRegisterInput.supportedDenominations.map((d) {
+                  final n = QaRegisterInput.hasNotes(d)
+                      ? (int.tryParse(
+                              _noteControllers[d]?.text.trim() ?? '0',
+                            ) ??
+                            0)
+                      : 0;
+                  final c = QaRegisterInput.hasCoins(d)
+                      ? (int.tryParse(
+                              _coinControllers[d]?.text.trim() ?? '0',
+                            ) ??
+                            0)
+                      : 0;
+                  final subtotal = (d * n) + (d * c);
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            '₹$d',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 4,
+                          child: QaRegisterInput.hasNotes(d)
+                              ? SizedBox(
+                                  height: 32,
+                                  child: TextFormField(
+                                    key: ValueKey<String>(
+                                      'close-register-note-$d',
+                                    ),
+                                    controller: _noteControllers[d],
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 8,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    onChanged: (_) => _onDenominationChanged(),
+                                  ),
+                                )
+                              : const Center(
+                                  child: Text(
+                                    '—',
+                                    style: TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 4,
+                          child: QaRegisterInput.hasCoins(d)
+                              ? SizedBox(
+                                  height: 32,
+                                  child: TextFormField(
+                                    key: ValueKey<String>(
+                                      'close-register-coin-$d',
+                                    ),
+                                    controller: _coinControllers[d],
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 8,
+                                          ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    onChanged: (_) => _onDenominationChanged(),
+                                  ),
+                                )
+                              : const Center(
+                                  child: Text(
+                                    '—',
+                                    style: TextStyle(
+                                      color: Color(0xFF9CA3AF),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            '₹$subtotal',
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: subtotal > 0
+                                  ? const Color(0xFF1F2937)
+                                  : const Color(0xFF9CA3AF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
 

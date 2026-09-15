@@ -97,6 +97,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
   OrderScenario _orderScenario = OrderScenario.sampleScenario;
   double _openingFloatAmount = 0.0;
   double _closeTotalAmount = 1000.0;
+  Map<int, int> _closeNotesMap = const <int, int>{};
+  Map<int, int> _closeCoinsMap = const <int, int>{};
   bool _aiModeEnabled = true;
   final List<AiChatMessage> _aiChatMessages = <AiChatMessage>[];
   AiPendingRequest? _pendingAssistantRequest;
@@ -228,6 +230,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       _profile = selectedProfile;
       _openingFloatAmount = registerInput.openingFloatAmount;
       _closeTotalAmount = registerInput.closeTotalAmount;
+      _closeNotesMap = registerInput.closeNotesMap;
+      _closeCoinsMap = registerInput.closeCoinsMap;
       if (activeOrderCase != null) {
         final orderCase = activeOrderCase;
         final matchingLoginCases = configuredCases
@@ -357,6 +361,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       _profile = profile;
       _openingFloatAmount = registerInput.openingFloatAmount;
       _closeTotalAmount = registerInput.closeTotalAmount;
+      _closeNotesMap = registerInput.closeNotesMap;
+      _closeCoinsMap = registerInput.closeCoinsMap;
       _targetMode = sshTarget.enabled ? QaTargetMode.ssh : QaTargetMode.local;
       _sshUser = sshTarget.username;
       _sshHost = sshTarget.host;
@@ -1513,6 +1519,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
             id: 'close_register',
             name: 'Close Register Flow',
             closeTotalAmount: _closeTotalAmount,
+            closeNotesMap: _closeNotesMap,
+            closeCoinsMap: _closeCoinsMap,
           )
         : null;
     final preparedExecution = PreparedExecution(
@@ -2397,6 +2405,9 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       setState(() {
         _showSettingsScreen = false;
         _openingFloatAmount = registerInput.openingFloatAmount;
+        _closeTotalAmount = registerInput.closeTotalAmount;
+        _closeNotesMap = registerInput.closeNotesMap;
+        _closeCoinsMap = registerInput.closeCoinsMap;
         _targetMode = target.enabled ? QaTargetMode.ssh : QaTargetMode.local;
         _sshUser = target.username;
         _sshHost = target.host;
@@ -2729,6 +2740,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
           setState(() {
             _openingFloatAmount = input.openingFloatAmount;
             _closeTotalAmount = input.closeTotalAmount;
+            _closeNotesMap = input.closeNotesMap;
+            _closeCoinsMap = input.closeCoinsMap;
           });
         }
       });

@@ -11,6 +11,8 @@ class QaRegisterInput {
   const QaRegisterInput({
     this.openingFloatAmount = 0.0,
     this.closeTotalAmount = 1000.0,
+    this.closeNotesMap = const <int, int>{},
+    this.closeCoinsMap = const <int, int>{},
     this.notes = '',
     this.closeNotes = '',
   });
@@ -20,8 +22,41 @@ class QaRegisterInput {
   static const double minCloseAmount = 0.0;
   static const double maxCloseAmount = 100000.0;
 
+  static const List<int> supportedDenominations = <int>[
+    500,
+    200,
+    100,
+    50,
+    20,
+    10,
+    5,
+    2,
+    1,
+  ];
+
+  static bool hasNotes(int denom) => denom >= 5;
+  static bool hasCoins(int denom) => denom <= 20;
+
+  static int computeTotalFromBreakdown(
+    Map<int, int> notesMap,
+    Map<int, int> coinsMap,
+  ) {
+    var total = 0;
+    for (final d in supportedDenominations) {
+      if (hasNotes(d)) {
+        total += d * (notesMap[d] ?? 0);
+      }
+      if (hasCoins(d)) {
+        total += d * (coinsMap[d] ?? 0);
+      }
+    }
+    return total;
+  }
+
   final double openingFloatAmount;
   final double closeTotalAmount;
+  final Map<int, int> closeNotesMap;
+  final Map<int, int> closeCoinsMap;
   final String notes;
   final String closeNotes;
 
@@ -34,12 +69,16 @@ class QaRegisterInput {
   QaRegisterInput copyWith({
     double? openingFloatAmount,
     double? closeTotalAmount,
+    Map<int, int>? closeNotesMap,
+    Map<int, int>? closeCoinsMap,
     String? notes,
     String? closeNotes,
   }) {
     return QaRegisterInput(
       openingFloatAmount: openingFloatAmount ?? this.openingFloatAmount,
       closeTotalAmount: closeTotalAmount ?? this.closeTotalAmount,
+      closeNotesMap: closeNotesMap ?? this.closeNotesMap,
+      closeCoinsMap: closeCoinsMap ?? this.closeCoinsMap,
       notes: notes ?? this.notes,
       closeNotes: closeNotes ?? this.closeNotes,
     );
@@ -48,6 +87,12 @@ class QaRegisterInput {
   Map<String, Object?> toJson() => <String, Object?>{
     'openingFloatAmount': openingFloatAmount,
     'closeTotalAmount': closeTotalAmount,
+    'closeNotesMap': closeNotesMap.map(
+      (k, v) => MapEntry<String, int>(k.toString(), v),
+    ),
+    'closeCoinsMap': closeCoinsMap.map(
+      (k, v) => MapEntry<String, int>(k.toString(), v),
+    ),
     'notes': notes,
     'closeNotes': closeNotes,
   };
@@ -55,11 +100,51 @@ class QaRegisterInput {
   factory QaRegisterInput.fromJson(Map<String, Object?> json) {
     final rawAmount = json['openingFloatAmount'];
     final amount = (rawAmount as num?)?.toDouble() ?? 0.0;
+
+    final rawNotesMap = json['closeNotesMap'];
+    final notesMap = <int, int>{};
+    if (rawNotesMap is Map) {
+      for (final entry in rawNotesMap.entries) {
+        final key = int.tryParse(entry.key.toString());
+        final val = (entry.value as num?)?.toInt();
+        if (key != null &&
+            val != null &&
+            val >= 0 &&
+            supportedDenominations.contains(key) &&
+            hasNotes(key)) {
+          notesMap[key] = val;
+        }
+      }
+    }
+
+    final rawCoinsMap = json['closeCoinsMap'];
+    final coinsMap = <int, int>{};
+    if (rawCoinsMap is Map) {
+      for (final entry in rawCoinsMap.entries) {
+        final key = int.tryParse(entry.key.toString());
+        final val = (entry.value as num?)?.toInt();
+        if (key != null &&
+            val != null &&
+            val >= 0 &&
+            supportedDenominations.contains(key) &&
+            hasCoins(key)) {
+          coinsMap[key] = val;
+        }
+      }
+    }
+
+    final computedTotal = computeTotalFromBreakdown(notesMap, coinsMap);
     final rawClose = json['closeTotalAmount'];
-    final closeAmount = (rawClose as num?)?.toDouble() ?? 1000.0;
+    final fallbackClose = (rawClose as num?)?.toDouble() ?? 1000.0;
+    final closeAmount = (notesMap.isNotEmpty || coinsMap.isNotEmpty)
+        ? computedTotal.toDouble()
+        : fallbackClose;
+
     return QaRegisterInput(
       openingFloatAmount: amount.clamp(minAmount, maxAmount),
       closeTotalAmount: closeAmount.clamp(minCloseAmount, maxCloseAmount),
+      closeNotesMap: notesMap,
+      closeCoinsMap: coinsMap,
       notes: (json['notes'] as String?) ?? '',
       closeNotes: (json['closeNotes'] as String?) ?? '',
     );

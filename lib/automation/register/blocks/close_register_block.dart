@@ -5,17 +5,23 @@ import 'package:penguin_pos_qa_agent/automation/execution_event.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_keys.dart';
 import 'package:penguin_pos_qa_agent/automation/register/blocks/open_register_block.dart';
 import 'package:penguin_pos_qa_agent/automation/register/register_keys.dart';
+import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repository.dart';
 
-/// Automates closing the cash register with the specified total amount,
-/// ensuring all payment summary fields and cash denominations are filled.
+/// Automates closing the cash register with the specified total amount or
+/// custom notes and coins breakdown, ensuring all payment summary fields and
+/// cash denominations are filled.
 class CloseRegisterBlock implements AutomationBlock {
   const CloseRegisterBlock({
     this.totalAmount = 1000.0,
     this.closingFloatAmount = 0.0,
+    this.notesMap = const <int, int>{},
+    this.coinsMap = const <int, int>{},
   });
 
   final double totalAmount;
   final double closingFloatAmount;
+  final Map<int, int> notesMap;
+  final Map<int, int> coinsMap;
 
   @override
   String get id => 'close_register';
@@ -34,7 +40,10 @@ class CloseRegisterBlock implements AutomationBlock {
   Future<void> execute(ExecutionContext context) async {
     final driver = context.driver;
     final timeout = context.timeout;
-    final totalTarget = totalAmount.toInt();
+    final useCustomBreakdown = notesMap.isNotEmpty || coinsMap.isNotEmpty;
+    final totalTarget = useCustomBreakdown
+        ? QaRegisterInput.computeTotalFromBreakdown(notesMap, coinsMap)
+        : totalAmount.toInt();
 
     // 1. Ensure on Register Screen
     context.emit(
@@ -74,6 +83,10 @@ class CloseRegisterBlock implements AutomationBlock {
     }
 
     // 3. Closing Float Cash Field
+    // Total cash amount is entered into the closing float field
+    final effectiveClosingFloat = closingFloatAmount > 0
+        ? closingFloatAmount.toInt()
+        : totalTarget;
     final hasClosingFloat = await driver.hasKey(
       PenguinPosRegisterKeys.inputClosingFloat,
       timeout: const Duration(seconds: 2),
@@ -81,12 +94,12 @@ class CloseRegisterBlock implements AutomationBlock {
     if (hasClosingFloat) {
       context.emit(
         'Filling Closing Float',
-        'Entering closing float cash amount: ₹${closingFloatAmount.toInt()}.',
+        'Entering closing float cash amount: ₹$effectiveClosingFloat.',
       );
       await driver.tap(PenguinPosRegisterKeys.inputClosingFloat);
       await driver.enterText(
         PenguinPosRegisterKeys.inputClosingFloat,
-        closingFloatAmount.toInt().toString(),
+        effectiveClosingFloat.toString(),
       );
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
@@ -141,25 +154,44 @@ class CloseRegisterBlock implements AutomationBlock {
       }
     }
 
-    // 5. Compute Greedy Denomination Breakdown for Total Target Amount
+    // 5. Populate Denomination Breakdown for Total Target Amount
     context.emit(
       'Filling Cash Denominations',
-      'Distributing total target amount ₹$totalTarget into notes and coins.',
+      'Distributing total target cash ₹$totalTarget into notes and coins.',
     );
 
-    const denoms = <int>[2000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
-    var remainder = totalTarget;
-    final breakdown = <int, int>{};
-    for (final d in denoms) {
-      breakdown[d] = remainder ~/ d;
-      remainder %= d;
+    const denoms = <int>[500, 200, 100, 50, 20, 10, 5, 2, 1];
+    final Map<int, int> effectiveNotes;
+    final Map<int, int> effectiveCoins;
+
+    if (useCustomBreakdown) {
+      effectiveNotes = notesMap;
+      effectiveCoins = coinsMap;
+    } else {
+      var remainder = totalTarget;
+      final greedy = <int, int>{};
+      for (final d in denoms) {
+        greedy[d] = remainder ~/ d;
+        remainder %= d;
+      }
+      effectiveNotes = <int, int>{
+        for (final d in denoms)
+          if (QaRegisterInput.hasNotes(d)) d: (greedy[d] ?? 0),
+      };
+      effectiveCoins = <int, int>{
+        for (final d in denoms)
+          if (QaRegisterInput.hasCoins(d))
+            d: (!QaRegisterInput.hasNotes(d) ? (greedy[d] ?? 0) : 0),
+      };
     }
 
-    // Denomination Tables (Notes & Coins across all standard Indian denominations)
+    // Denomination Tables (Notes for hasNotes; Coins for hasCoins)
     final denomKeys = <({int denom, bool isNote, String key})>[
       for (final d in denoms) ...[
-        (denom: d, isNote: true, key: PenguinPosRegisterKeys.cashNotes(d)),
-        (denom: d, isNote: false, key: PenguinPosRegisterKeys.cashCoins(d)),
+        if (QaRegisterInput.hasNotes(d))
+          (denom: d, isNote: true, key: PenguinPosRegisterKeys.cashNotes(d)),
+        if (QaRegisterInput.hasCoins(d))
+          (denom: d, isNote: false, key: PenguinPosRegisterKeys.cashCoins(d)),
       ],
     ];
 
@@ -180,8 +212,8 @@ class CloseRegisterBlock implements AutomationBlock {
     for (final probe in denomProbes) {
       if (!probe.present) continue;
       final count = probe.isNote
-          ? (breakdown[probe.denom] ?? 0)
-          : (probe.denom <= 2 ? (breakdown[probe.denom] ?? 0) : 0);
+          ? (effectiveNotes[probe.denom] ?? 0)
+          : (effectiveCoins[probe.denom] ?? 0);
       await driver.tap(probe.key);
       await driver.enterText(probe.key, count.toString());
       await Future<void>.delayed(const Duration(milliseconds: 50));
