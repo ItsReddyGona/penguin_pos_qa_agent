@@ -94,6 +94,26 @@ enum UiCustomMode {
   }
 }
 
+/// Customer path used by an order test case.
+enum OrderCustomerMode {
+  continueWithoutCustomer('Continue without customer'),
+  continueWithCustomer('Continue with customer');
+
+  const OrderCustomerMode(this.label);
+  final String label;
+
+  static OrderCustomerMode fromString(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == 'continuewithcustomer' ||
+        normalized == 'continue_with_customer' ||
+        normalized == 'withcustomer' ||
+        normalized == 'with_customer') {
+      return OrderCustomerMode.continueWithCustomer;
+    }
+    return OrderCustomerMode.continueWithoutCustomer;
+  }
+}
+
 /// Single SKU item entry for an order automation test scenario.
 class OrderItem {
   static final RegExp _numericBizerbaPattern = RegExp(r'^\d{8}\.\d{3}$');
@@ -297,6 +317,10 @@ class OrderScenario {
     this.rawJson = defaultSampleJson,
     this.rawCsv = defaultSampleCsv,
     this.openingFloatAmount = 0.0,
+    this.customerMode = OrderCustomerMode.continueWithoutCustomer,
+    this.customerPhoneNumber,
+    this.customerName,
+    this.customerOtp,
   });
 
   final String id;
@@ -312,6 +336,50 @@ class OrderScenario {
   final String rawJson;
   final String rawCsv;
   final double openingFloatAmount;
+  final OrderCustomerMode customerMode;
+  final String? customerPhoneNumber;
+  final String? customerName;
+  final String? customerOtp;
+
+  OrderScenario copyWith({
+    String? id,
+    String? name,
+    String? loginId,
+    String? password,
+    String? unlockPin,
+    List<OrderItem>? items,
+    int? ordersCount,
+    InputSourceMode? inputSourceMode,
+    UiCustomMode? uiCustomMode,
+    Map<int, List<OrderItem>>? perIterationItems,
+    String? rawJson,
+    String? rawCsv,
+    double? openingFloatAmount,
+    OrderCustomerMode? customerMode,
+    String? customerPhoneNumber,
+    String? customerName,
+    String? customerOtp,
+  }) {
+    return OrderScenario(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      loginId: loginId ?? this.loginId,
+      password: password ?? this.password,
+      unlockPin: unlockPin ?? this.unlockPin,
+      items: items ?? this.items,
+      ordersCount: ordersCount ?? this.ordersCount,
+      inputSourceMode: inputSourceMode ?? this.inputSourceMode,
+      uiCustomMode: uiCustomMode ?? this.uiCustomMode,
+      perIterationItems: perIterationItems ?? this.perIterationItems,
+      rawJson: rawJson ?? this.rawJson,
+      rawCsv: rawCsv ?? this.rawCsv,
+      openingFloatAmount: openingFloatAmount ?? this.openingFloatAmount,
+      customerMode: customerMode ?? this.customerMode,
+      customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+      customerName: customerName ?? this.customerName,
+      customerOtp: customerOtp ?? this.customerOtp,
+    );
+  }
 
   static final OrderScenario sampleScenario = OrderScenario(
     id: 'order_cash_payment_default',
@@ -510,6 +578,10 @@ class OrderScenario {
     'rawJson': rawJson,
     'rawCsv': rawCsv,
     'openingFloatAmount': openingFloatAmount,
+    'customerMode': customerMode.name,
+    if (customerPhoneNumber != null) 'customerPhoneNumber': customerPhoneNumber,
+    if (customerName != null) 'customerName': customerName,
+    if (customerOtp != null) 'customerOtp': customerOtp,
   };
 
   factory OrderScenario.fromJson(Map<String, Object?> json) {
@@ -549,6 +621,12 @@ class OrderScenario {
       rawCsv: (json['rawCsv'] as String?) ?? defaultSampleCsv,
       openingFloatAmount:
           (json['openingFloatAmount'] as num?)?.toDouble() ?? 0.0,
+      customerMode: OrderCustomerMode.fromString(
+        json['customerMode'] as String?,
+      ),
+      customerPhoneNumber: json['customerPhoneNumber'] as String?,
+      customerName: json['customerName'] as String?,
+      customerOtp: json['customerOtp'] as String?,
     );
   }
 }

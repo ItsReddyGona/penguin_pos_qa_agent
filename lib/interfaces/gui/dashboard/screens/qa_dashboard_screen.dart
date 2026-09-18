@@ -1295,6 +1295,10 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
                 : ExecutionItemStrategy.sameForAll,
             items: _orderScenario.items,
             perIterationItems: _orderScenario.perIterationItems,
+            customerMode: _orderScenario.customerMode,
+            customerPhoneNumber: _orderScenario.customerPhoneNumber,
+            customerName: _orderScenario.customerName,
+            customerOtp: _orderScenario.customerOtp,
           )
         : null,
   );
@@ -1510,6 +1514,10 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
             rawJson: _orderScenario.rawJson,
             rawCsv: _orderScenario.rawCsv,
             openingFloatAmount: registerInput.openingFloatAmount,
+            customerMode: _orderScenario.customerMode,
+            customerPhoneNumber: _orderScenario.customerPhoneNumber,
+            customerName: _orderScenario.customerName,
+            customerOtp: _orderScenario.customerOtp,
           )
         : null;
     final registerScenario = _selectedSuiteId == 'register'

@@ -7,6 +7,16 @@ abstract final class PenguinPosOrderKeys {
   static const orderOpenRegister = 'order.open_register';
   static const orderSaleStart = 'order.sale.start';
   static const continueWithoutCustomer = 'sale.continuewithoutcustomer';
+  static const addCustomerDetails = 'sale.add_customer_details';
+  static const customerPhoneInput = 'sale.customer.phone_input';
+  static const customerSearchButton = 'sale.customer.search_button';
+  static const customerNameInput = 'sale.customer.name_input';
+  static const customerSubmitButton = 'sale.customer.submit_button';
+  static const customerStatusText = 'sale.customer.status_text';
+  static const customerOtpInput = 'sale.customer.otp_input';
+  static const customerOtpVerifyButton = 'sale.customer.otp_verify_button';
+  static const customerHeaderName = 'order.customer_header.name';
+  static const customerHeaderPhone = 'order.customer_header.phone';
   static const orderTable = 'order.table';
   static const orderNumPadSection = 'order.numpad.section';
   static const orderInputCode = 'order.code.input';

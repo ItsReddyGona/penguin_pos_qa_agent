@@ -620,6 +620,10 @@ class QaExecutionCoordinator {
           ? UiCustomMode.perIteration
           : UiCustomMode.common,
       perIterationItems: order.perIterationItems,
+      customerMode: order.customerMode,
+      customerPhoneNumber: order.customerPhoneNumber,
+      customerName: order.customerName,
+      customerOtp: order.customerOtp,
     );
   }
 

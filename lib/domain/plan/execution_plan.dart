@@ -38,12 +38,20 @@ class OrderExecutionConfiguration {
     this.itemStrategy = ExecutionItemStrategy.sameForAll,
     this.items = const <OrderItem>[],
     this.perIterationItems = const <int, List<OrderItem>>{},
+    this.customerMode = OrderCustomerMode.continueWithoutCustomer,
+    this.customerPhoneNumber,
+    this.customerName,
+    this.customerOtp,
   });
 
   final int ordersCount;
   final ExecutionItemStrategy itemStrategy;
   final List<OrderItem> items;
   final Map<int, List<OrderItem>> perIterationItems;
+  final OrderCustomerMode customerMode;
+  final String? customerPhoneNumber;
+  final String? customerName;
+  final String? customerOtp;
 
   Iterable<OrderItem> get allItems sync* {
     yield* items;
@@ -79,6 +87,14 @@ class OrderExecutionConfiguration {
         issues.add('Weighed SKU ${item.skuCode} needs a positive weight.');
       }
     }
+
+    if (customerMode == OrderCustomerMode.continueWithCustomer &&
+        (customerPhoneNumber == null || customerPhoneNumber!.trim().isEmpty)) {
+      issues.add(
+        'Customer phone number is required when customer mode is continue with customer.',
+      );
+    }
+
     return issues.toSet().toList(growable: false);
   }
 
@@ -87,11 +103,19 @@ class OrderExecutionConfiguration {
     ExecutionItemStrategy? itemStrategy,
     List<OrderItem>? items,
     Map<int, List<OrderItem>>? perIterationItems,
+    OrderCustomerMode? customerMode,
+    String? customerPhoneNumber,
+    String? customerName,
+    String? customerOtp,
   }) => OrderExecutionConfiguration(
     ordersCount: ordersCount ?? this.ordersCount,
     itemStrategy: itemStrategy ?? this.itemStrategy,
     items: items ?? this.items,
     perIterationItems: perIterationItems ?? this.perIterationItems,
+    customerMode: customerMode ?? this.customerMode,
+    customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+    customerName: customerName ?? this.customerName,
+    customerOtp: customerOtp ?? this.customerOtp,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -104,6 +128,10 @@ class OrderExecutionConfiguration {
         orderItems.map((item) => item.toJson()).toList(growable: false),
       ),
     ),
+    'customerMode': customerMode.name,
+    if (customerPhoneNumber != null) 'customerPhoneNumber': customerPhoneNumber,
+    if (customerName != null) 'customerName': customerName,
+    if (customerOtp != null) 'customerOtp': customerOtp,
   };
 }
 

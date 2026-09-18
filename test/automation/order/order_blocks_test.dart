@@ -272,6 +272,100 @@ void main() {
     );
 
     test(
+      'StartSaleBlock handles continueWithCustomer without OTP when valid phone is provided',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        driver.activeKeys[PenguinPosOrderKeys.addCustomerDetails] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerPhoneInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSearchButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSubmitButton] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_cust',
+          name: 'Customer Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '9876543210',
+          customerName: 'John Doe',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.addCustomerDetails),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosOrderKeys.customerPhoneInput}:9876543210'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerSearchButton),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerSubmitButton),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock handles continueWithCustomer with OTP verification',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        driver.activeKeys[PenguinPosOrderKeys.addCustomerDetails] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerPhoneInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSearchButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSubmitButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerOtpInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerOtpVerifyButton] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_cust_otp',
+          name: 'Customer OTP Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '9876543210',
+          customerOtp: '1234',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosOrderKeys.customerOtpInput}:1234'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerOtpVerifyButton),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock throws StateError when continueWithCustomer has empty phone',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        final scenario = const OrderScenario(
+          id: 's_cust_err',
+          name: 'Customer Error Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        expect(() => block.execute(context), throwsStateError);
+      },
+    );
+
+    test(
       'EnterOrderItemsBlock enters item SKU and updates state count',
       () async {
         final scenario = const OrderScenario(

@@ -1,21 +1,7 @@
 import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 
-/// Customer path used by an order test case.
-enum OrderCustomerMode {
-  continueWithoutCustomer('Continue without customer');
-
-  const OrderCustomerMode(this.label);
-  final String label;
-
-  static OrderCustomerMode fromString(String? value) {
-    if (value == 'continueWithoutCustomer' ||
-        value == 'continue_without_customer') {
-      return OrderCustomerMode.continueWithoutCustomer;
-    }
-    // The first supported customer path is deliberately the safe default.
-    return OrderCustomerMode.continueWithoutCustomer;
-  }
-}
+export 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart'
+    show OrderCustomerMode;
 
 /// Payment method used by an order test case.
 enum OrderPaymentMethod {
@@ -42,6 +28,9 @@ class OrderTestCaseDefinition {
     this.description = '',
     required this.loginTestCaseId,
     this.customerMode = OrderCustomerMode.continueWithoutCustomer,
+    this.customerPhoneNumber,
+    this.customerName,
+    this.customerOtp,
     this.paymentMethod = OrderPaymentMethod.cash,
     this.orderCount = 1,
     this.items = const <OrderItem>[],
@@ -55,6 +44,9 @@ class OrderTestCaseDefinition {
   final String description;
   final String loginTestCaseId;
   final OrderCustomerMode customerMode;
+  final String? customerPhoneNumber;
+  final String? customerName;
+  final String? customerOtp;
   final OrderPaymentMethod paymentMethod;
   final int orderCount;
   final List<OrderItem> items;
@@ -83,6 +75,10 @@ class OrderTestCaseDefinition {
         ? UiCustomMode.common
         : uiCustomMode,
     perIterationItems: perIterationItems,
+    customerMode: customerMode,
+    customerPhoneNumber: customerPhoneNumber,
+    customerName: customerName,
+    customerOtp: customerOtp,
   );
 
   OrderTestCaseDefinition copyWith({
@@ -91,6 +87,9 @@ class OrderTestCaseDefinition {
     String? description,
     String? loginTestCaseId,
     OrderCustomerMode? customerMode,
+    String? customerPhoneNumber,
+    String? customerName,
+    String? customerOtp,
     OrderPaymentMethod? paymentMethod,
     int? orderCount,
     List<OrderItem>? items,
@@ -103,6 +102,9 @@ class OrderTestCaseDefinition {
     description: description ?? this.description,
     loginTestCaseId: loginTestCaseId ?? this.loginTestCaseId,
     customerMode: customerMode ?? this.customerMode,
+    customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+    customerName: customerName ?? this.customerName,
+    customerOtp: customerOtp ?? this.customerOtp,
     paymentMethod: paymentMethod ?? this.paymentMethod,
     orderCount: orderCount ?? this.orderCount,
     items: items ?? this.items,
@@ -118,6 +120,9 @@ class OrderTestCaseDefinition {
     'description': description,
     'loginTestCaseId': loginTestCaseId,
     'customerMode': customerMode.name,
+    if (customerPhoneNumber != null) 'customerPhoneNumber': customerPhoneNumber,
+    if (customerName != null) 'customerName': customerName,
+    if (customerOtp != null) 'customerOtp': customerOtp,
     'paymentMethod': paymentMethod.name,
     'orderCount': orderCount,
     'items': items.map((item) => item.toJson()).toList(growable: false),
@@ -163,6 +168,9 @@ class OrderTestCaseDefinition {
       customerMode: OrderCustomerMode.fromString(
         json['customerMode'] as String?,
       ),
+      customerPhoneNumber: json['customerPhoneNumber'] as String?,
+      customerName: json['customerName'] as String?,
+      customerOtp: json['customerOtp'] as String?,
       paymentMethod: OrderPaymentMethod.fromString(
         json['paymentMethod'] as String?,
       ),

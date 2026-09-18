@@ -220,11 +220,11 @@ class TestSuiteItem {
           stepsDescription: <String>[
             'Navigate to Order screen (home.tab.order)',
             'Verify Start Sale widget (order.sale.start) is visible',
-            'Tap Continue Without Customer (sale.continuewithoutcustomer)',
+            'Handle customer selection (Continue with Customer details or Continue Without Customer proxy)',
             'Confirm Order Table (order.table) and NumPad section are displayed',
           ],
           purpose:
-              'Initiate order transaction and proceed with customer proxy handling.',
+              'Initiate order transaction and proceed with customer details or proxy handling.',
           preconditions: <String>[
             'An authenticated session is ready at the home screen.',
           ],

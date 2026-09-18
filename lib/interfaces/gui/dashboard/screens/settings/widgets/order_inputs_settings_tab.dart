@@ -53,11 +53,15 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
   int _selectedIterationIndex = 1;
   UiCustomMode _uiCustomMode = UiCustomMode.common;
 
+  OrderCustomerMode _customerMode = OrderCustomerMode.continueWithoutCustomer;
   final _idController = TextEditingController(text: 'ORD-001');
   final _titleController = TextEditingController(text: 'Cash Order');
   final _descriptionController = TextEditingController();
   final _loginCaseController = TextEditingController(text: 'valid_login');
   final _ordersCountController = TextEditingController(text: '1');
+  final _customerPhoneController = TextEditingController();
+  final _customerNameController = TextEditingController();
+  final _customerOtpController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -89,6 +93,9 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
     _descriptionController.dispose();
     _loginCaseController.dispose();
     _ordersCountController.dispose();
+    _customerPhoneController.dispose();
+    _customerNameController.dispose();
+    _customerOtpController.dispose();
     super.dispose();
   }
 
@@ -158,6 +165,10 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
           _titleController.text = _testCase!.title;
           _descriptionController.text = _testCase!.description;
           _loginCaseController.text = _testCase!.loginTestCaseId;
+          _customerMode = _testCase!.customerMode;
+          _customerPhoneController.text = _testCase!.customerPhoneNumber ?? '';
+          _customerNameController.text = _testCase!.customerName ?? '';
+          _customerOtpController.text = _testCase!.customerOtp ?? '';
           _ordersCount = _testCase!.orderCount;
           _ordersCountController.text = _ordersCount.toString();
           _uiCustomMode = _testCase!.uiCustomMode;
@@ -379,6 +390,17 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           loginTestCaseId: _loginCaseController.text.trim(),
+          customerMode: _customerMode,
+          customerPhoneNumber:
+              _customerMode == OrderCustomerMode.continueWithCustomer
+              ? _customerPhoneController.text.trim()
+              : null,
+          customerName: _customerMode == OrderCustomerMode.continueWithCustomer
+              ? _customerNameController.text.trim()
+              : null,
+          customerOtp: _customerMode == OrderCustomerMode.continueWithCustomer
+              ? _customerOtpController.text.trim()
+              : null,
           orderCount: _ordersCount,
           items: List<OrderItem>.unmodifiable(_items),
           uiCustomMode: _ordersCount <= 1 ? UiCustomMode.common : _uiCustomMode,
@@ -677,6 +699,109 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
                           ],
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color:
+                                _customerMode ==
+                                    OrderCustomerMode.continueWithCustomer
+                                ? Theme.of(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.5)
+                                : Colors.grey.shade300,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          color:
+                              _customerMode ==
+                                  OrderCustomerMode.continueWithCustomer
+                              ? Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.04)
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Switch.adaptive(
+                              value:
+                                  _customerMode ==
+                                  OrderCustomerMode.continueWithCustomer,
+                              onChanged: (val) {
+                                setState(() {
+                                  _customerMode = val
+                                      ? OrderCustomerMode.continueWithCustomer
+                                      : OrderCustomerMode
+                                            .continueWithoutCustomer;
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Continue with Customer',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    _customerMode ==
+                                        OrderCustomerMode.continueWithCustomer
+                                    ? Theme.of(context).primaryColor
+                                    : Colors.grey.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_customerMode ==
+                          OrderCustomerMode.continueWithCustomer) ...<Widget>[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _customerPhoneController,
+                            keyboardType: TextInputType.phone,
+                            decoration: _fieldDecoration(
+                              label: 'Customer Phone *',
+                              hint: '9876543210 (10 digits)',
+                            ),
+                            validator: (val) {
+                              if (_customerMode ==
+                                      OrderCustomerMode.continueWithCustomer &&
+                                  (val == null || val.trim().isEmpty)) {
+                                return 'Phone number required';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _customerNameController,
+                            decoration: _fieldDecoration(
+                              label: 'Customer Name (Optional)',
+                              hint: 'Customer Name',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 120,
+                          child: TextFormField(
+                            controller: _customerOtpController,
+                            decoration: _fieldDecoration(
+                              label: 'Test OTP',
+                              hint: '1234',
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

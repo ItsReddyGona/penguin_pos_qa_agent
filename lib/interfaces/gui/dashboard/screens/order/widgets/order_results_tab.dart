@@ -130,6 +130,17 @@ class OrderResultsTab extends StatelessWidget {
     final durationSec = (loop.durationMs / 1000).toStringAsFixed(2);
     final orderNum = loop.orderNumber ?? 'ORD-${10000 + loop.loopIndex}';
 
+    final isCustomerAttached =
+        result?.metadata['customerMode'] == 'continueWithCustomer';
+    final customerPhone = result?.metadata['customerPhoneNumber'] as String?;
+    final customerName = result?.metadata['customerName'] as String?;
+    final customerDetail =
+        isCustomerAttached && customerPhone != null && customerPhone.isNotEmpty
+        ? (customerName != null && customerName.isNotEmpty
+              ? 'Attached: $customerName ($customerPhone)'
+              : 'Attached: Customer $customerPhone')
+        : 'Continue Without Customer (Proxy / Walk-in)';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -209,7 +220,7 @@ class OrderResultsTab extends StatelessWidget {
                 _buildStageRow(
                   icon: Icons.person_outline_rounded,
                   stageName: 'Customer',
-                  detail: 'Continue Without Customer (Proxy / Walk-in)',
+                  detail: customerDetail,
                   passed: true,
                 ),
                 const Divider(height: 20, color: Color(0xFFF1F5F9)),
