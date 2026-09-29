@@ -39,10 +39,22 @@ abstract final class PenguinPosOrderKeys {
   static const orderNumPadEnter = 'order.numpad.enter';
   static const orderKeyboardToggle = 'order.keyboard.toggle';
   static String orderQwertyKey(String char) => 'order.qwerty.key.$char';
+  static const orderQwertySpace = 'order.qwerty.space';
   static const orderQwertyEnter = 'order.qwerty.enter';
 
   static const orderUpdateCart = 'order.update_cart';
   static const orderProceedToPay = 'order.proceed_to_pay';
+
+  // Search items flow keys
+  static const orderSearchItemsButton = 'order.action.search_items';
+  static const searchDialog = 'search.dialog';
+  static const searchTextInput = 'search.input.text';
+  static const searchSubmitButton = 'search.action.submit';
+  static const searchCloseButton = 'search.action.close';
+  static String searchProductAdd(String sku) =>
+      'search.product.add.${sku.trim()}';
+  static const searchProductAddFirst = 'search.product.add.first';
+  static String searchCategory(String name) => 'search.category.${name.trim()}';
 
   static const paymentScreen = 'payment.screen';
   static const billSummaryTotalPayable = 'bill_summary.total_payable';

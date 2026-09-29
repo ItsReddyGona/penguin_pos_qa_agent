@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+.agents/skills/caveman/README.md
+.agents/skills/caveman/SKILL.md
+.agents/skills/caveman-explore/SKILL.md
+.agents/skills/caveman-explore/tests/skill-file.test.mjs
+.agents/skills/caveman-learn/CLAUDE.md
+.agents/skills/caveman-learn/README.md
+.agents/skills/caveman-learn/SKILL.md
+.agents/skills/caveman-learn/tests/index.js
+.agents/skills/caveman-learn/tests/skill-file.test.mjs

@@ -44,9 +44,9 @@ class InputsCredentialsWorkspace extends StatefulWidget {
 class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(
-    length: 4,
+    length: 5,
     vsync: this,
-    initialIndex: widget.initialTabIndex.clamp(0, 3),
+    initialIndex: widget.initialTabIndex.clamp(0, 4),
   );
 
   @override
@@ -76,7 +76,7 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Configure reusable manual inputs for Login, Order, Open Register, and Close Register test suites.',
+                  'Configure reusable manual inputs for Login, Order, SearchNOrder, Open Register, and Close Register test suites.',
                   style: TextStyle(fontSize: 13.5, color: Color(0xFF787A76)),
                 ),
               ],
@@ -128,7 +128,7 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
       Container(
         key: const ValueKey<String>('inputs-credentials-segmented-tabs'),
         height: 42,
-        width: 600,
+        width: 720,
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: const Color(0xFFE9E9EE),
@@ -154,6 +154,7 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
           tabs: const <Widget>[
             Tab(text: 'Login'),
             Tab(text: 'Order Inputs'),
+            Tab(text: 'SearchNOrder'),
             Tab(text: 'Open Register'),
             Tab(text: 'Close Register'),
           ],
@@ -181,6 +182,18 @@ class _InputsCredentialsWorkspaceState extends State<InputsCredentialsWorkspace>
               loadCases: widget.loadOrderCases,
               saveCases: widget.saveOrderCases,
               onProfileChanged: widget.onProfileChanged,
+            ),
+            OrderInputsSettingsTab(
+              profiles: widget.profiles,
+              selectedProfile: widget.selectedProfile,
+              loadItems: widget.loadOrderItems,
+              saveItems: widget.saveOrderItems,
+              loadCases: widget.loadOrderCases,
+              saveCases: widget.saveOrderCases,
+              onProfileChanged: widget.onProfileChanged,
+              headerTitle: 'SearchNOrder SKU & Item Name Parameters',
+              headerDescription:
+                  'Configure items to search by product name or SKU code and punch through Search items modal checkout.',
             ),
             RegisterInputsSettingsTab(
               profiles: widget.profiles,

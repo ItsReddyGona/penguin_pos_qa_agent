@@ -6,15 +6,13 @@ import 'package:penguin_pos_qa_agent/runtime/app_target_handle.dart';
 
 /// Handles launching the PenguinPOS Flutter application process and capturing the VM Service URI.
 class PenguinPosAppLauncher {
-  static const defaultAppRoot =
-      '/Users/reddygona/Documents/PenguinPOS/penguin_pos';
-
   Future<LaunchedPenguinPos> launch({
     required String appRoot,
     String flutterExecutable = 'flutter',
     String? device,
     String? entity,
     String? env,
+    void Function(String message)? onProgress,
   }) async {
     final targetDevice =
         device ??
@@ -27,6 +25,8 @@ class PenguinPosAppLauncher {
     final targetEntity =
         entity ?? Platform.environment['PENGUIN_POS_ENTITY'] ?? 'ibo';
     final targetEnv = env ?? Platform.environment['PENGUIN_POS_ENV'] ?? 'stage';
+
+    onProgress?.call('Starting Flutter run on $targetDevice...');
 
     final process = await Process.start(
       flutterExecutable.isNotEmpty ? flutterExecutable : 'flutter',
@@ -41,21 +41,46 @@ class PenguinPosAppLauncher {
       workingDirectory: appRoot,
       mode: ProcessStartMode.normal,
     );
-    final serviceUri = await _waitForVmServiceUri(process);
+    final serviceUri = await _waitForVmServiceUri(
+      process,
+      onProgress: onProgress,
+    );
     return LaunchedPenguinPos(process: process, vmServiceUri: serviceUri);
   }
 
-  Future<Uri> _waitForVmServiceUri(Process process) async {
+  Future<Uri> _waitForVmServiceUri(
+    Process process, {
+    void Function(String message)? onProgress,
+  }) async {
     final lines = StreamGroup.merge(<Stream<String>>[
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()),
       process.stderr.transform(utf8.decoder).transform(const LineSplitter()),
     ]);
     final expression = RegExp(r'https?://[^\s]+');
     final serviceUri = Completer<Uri>();
+    final buildLogs = <String>[];
     late final StreamSubscription<String> outputSubscription;
 
     outputSubscription = lines.listen(
       (line) {
+        final trimmed = line.trim();
+        if (trimmed.isNotEmpty) {
+          if (buildLogs.length >= 20) {
+            buildLogs.removeAt(0);
+          }
+          buildLogs.add(trimmed);
+        }
+
+        // Stream build/launch progress events
+        if (trimmed.startsWith('Building ') ||
+            trimmed.startsWith('Running pod ') ||
+            trimmed.startsWith('Launching ') ||
+            trimmed.startsWith('Waiting for ') ||
+            trimmed.contains('Xcode build') ||
+            trimmed.contains('CocoaPods')) {
+          onProgress?.call(trimmed);
+        }
+
         // Keep application logs private by forwarding only explicit QA traces.
         if (line.startsWith('[PenguinPOS]') || line.startsWith('[IdleLock]')) {
           stderr.writeln('[PenguinPOS app] $line');
@@ -76,9 +101,12 @@ class PenguinPosAppLauncher {
       },
       onDone: () {
         if (!serviceUri.isCompleted) {
+          final errorSnippet = buildLogs.isNotEmpty
+              ? '\nLast output:\n${buildLogs.join('\n')}'
+              : '';
           serviceUri.completeError(
             StateError(
-              'PenguinPOS exited before publishing a Dart VM service URI.',
+              'PenguinPOS exited before publishing a Dart VM service URI.$errorSnippet',
             ),
           );
         }
@@ -159,17 +187,30 @@ class LaunchedPenguinPos implements AppTargetHandle {
       );
     }
     try {
+      try {
+        process.stdin.writeln('q');
+      } catch (_) {}
       process.kill(ProcessSignal.sigint);
       await process.exitCode.timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 2),
         onTimeout: () {
           try {
             process.kill(ProcessSignal.sigkill);
           } catch (_) {}
+          if (Platform.isMacOS || Platform.isLinux) {
+            try {
+              Process.runSync('killall', ['-9', 'penguin_pos']);
+            } catch (_) {}
+          }
           return -1;
         },
       );
     } catch (_) {}
+    if (Platform.isMacOS || Platform.isLinux) {
+      try {
+        Process.runSync('killall', ['-9', 'penguin_pos']);
+      } catch (_) {}
+    }
     if (!_lifecycleController.isClosed) {
       _lifecycleController.add(
         const AppTargetLifecycleEvent(AppTargetLifecycleState.stopped),

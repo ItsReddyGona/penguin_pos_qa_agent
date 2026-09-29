@@ -26,6 +26,8 @@ class OrderInputsSettingsTab extends StatefulWidget {
     this.loadCases,
     this.saveCases,
     required this.onProfileChanged,
+    this.headerTitle,
+    this.headerDescription,
   });
 
   final List<QaProfile> profiles;
@@ -35,6 +37,8 @@ class OrderInputsSettingsTab extends StatefulWidget {
   final OrderCasesLoader? loadCases;
   final OrderCasesSaver? saveCases;
   final ValueChanged<QaProfile> onProfileChanged;
+  final String? headerTitle;
+  final String? headerDescription;
 
   @override
   State<OrderInputsSettingsTab> createState() => _OrderInputsSettingsTabState();
@@ -465,10 +469,10 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Order SKU Inputs & Parameters',
-                  style: TextStyle(
+                  widget.headerTitle ?? 'Order SKU Inputs & Parameters',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF2C302E),
@@ -501,9 +505,10 @@ class _OrderInputsSettingsTabState extends State<OrderInputsSettingsTab> {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Configure the default SKU items and test parameters loaded by the Order & Cash Payment test suite.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF787A76)),
+          Text(
+            widget.headerDescription ??
+                'Configure the default SKU items and test parameters loaded by the Order & Cash Payment test suite.',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF787A76)),
           ),
           const SizedBox(height: 16),
 

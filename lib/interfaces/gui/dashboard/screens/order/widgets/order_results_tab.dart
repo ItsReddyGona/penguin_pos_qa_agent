@@ -262,7 +262,7 @@ class OrderResultsTab extends StatelessWidget {
                   stageName: 'Payment',
                   detail:
                       'Cash Selected · Total: ₹${loop.totalPayable.toStringAsFixed(2)} → Tendered: ₹${loop.payableCash}',
-                  passed: true,
+                  passed: loop.passed,
                 ),
                 const Divider(height: 20, color: Color(0xFFF1F5F9)),
 

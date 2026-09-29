@@ -131,6 +131,23 @@ class FakeRegisterDriver implements Driver {
   }
 
   @override
+  Future<void> tapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+  }
+
+  @override
+  Future<bool> tryTapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+    return true;
+  }
+
+  @override
   Future<void> enterText(
     String key,
     String text, {

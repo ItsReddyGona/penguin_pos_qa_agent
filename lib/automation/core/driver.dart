@@ -136,6 +136,16 @@ abstract interface class Driver {
     Duration timeout = const Duration(seconds: 3),
   });
 
+  Future<void> tapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  });
+
+  Future<bool> tryTapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  });
+
   /// Sends a custom text command message to the target app's Flutter Driver extension handler.
   Future<String?> requestData(
     String message, {

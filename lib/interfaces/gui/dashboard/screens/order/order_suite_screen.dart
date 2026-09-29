@@ -135,10 +135,10 @@ class _OrderSuiteScreenState extends State<OrderSuiteScreen>
       }
       for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
         final item = items[itemIndex];
-        if (item.skuCode.trim().isEmpty) {
+        if (item.skuCode.trim().isEmpty && item.name.trim().isEmpty) {
           setState(
             () => _validationError =
-                'Order #$iteration, item #${itemIndex + 1}: SKU code cannot be empty.',
+                'Order #$iteration, item #${itemIndex + 1}: SKU code or item name cannot be empty.',
           );
           return false;
         }
@@ -266,7 +266,11 @@ class _OrderSuiteScreenState extends State<OrderSuiteScreen>
                   )
                 : const Icon(Icons.play_arrow_rounded, size: 20),
             label: Text(
-              widget.running ? 'Punching Orders...' : 'Run Order Suite',
+              widget.running
+                  ? 'Punching Orders...'
+                  : widget.suite.id == 'search_n_order'
+                  ? 'Run SearchNOrder Suite'
+                  : 'Run Order Suite',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),

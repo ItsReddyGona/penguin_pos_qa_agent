@@ -395,6 +395,46 @@ class DriverEngine implements Driver {
   }
 
   @override
+  Future<void> tapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final driver = _driver;
+    if (driver == null) throw StateError('Driver is not connected');
+    await driver.waitFor(find.byType(type), timeout: timeout);
+    try {
+      await driver.scrollIntoView(
+        find.byType(type),
+        timeout: const Duration(seconds: 1),
+      );
+    } catch (_) {}
+    await driver.tap(find.byType(type));
+  }
+
+  @override
+  Future<bool> tryTapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final driver = _driver;
+    if (driver == null) return false;
+    try {
+      await driver.waitFor(find.byType(type), timeout: timeout);
+      try {
+        await driver.scrollIntoView(
+          find.byType(type),
+          timeout: const Duration(seconds: 1),
+        );
+      } catch (_) {}
+      await driver.tap(find.byType(type));
+      return true;
+    } catch (error) {
+      _throwIfTargetDisconnected(error);
+      return false;
+    }
+  }
+
+  @override
   Future<String?> requestData(
     String message, {
     Duration timeout = const Duration(seconds: 5),

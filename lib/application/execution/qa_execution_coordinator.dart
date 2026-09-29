@@ -106,6 +106,7 @@ class ExecutionLaunchRequest {
     required this.environment,
     this.targetMode = ExecutionTargetMode.local,
     this.sshConfig,
+    this.onProgress,
   });
 
   final String appRoot;
@@ -114,6 +115,7 @@ class ExecutionLaunchRequest {
   final String environment;
   final ExecutionTargetMode targetMode;
   final SshExecutionConfig? sshConfig;
+  final void Function(String message)? onProgress;
 }
 
 typedef ExecutionLauncher =
@@ -244,6 +246,7 @@ class QaExecutionCoordinator {
         flutterExecutable: request.flutterExecutable,
         entity: request.entity,
         env: request.environment,
+        onProgress: request.onProgress,
       ),
       sshLauncher: sshLauncher,
       loginExecutor:
@@ -409,6 +412,11 @@ class QaExecutionCoordinator {
         environment: execution.environment,
         targetMode: execution.targetMode,
         sshConfig: execution.sshConfig,
+        onProgress: (message) {
+          callbacks.onEvent?.call(
+            ExecutionEvent(title: 'Build Progress', message: message),
+          );
+        },
       );
       final launcher = execution.targetMode == ExecutionTargetMode.ssh
           ? sshLauncher
@@ -504,14 +512,15 @@ class QaExecutionCoordinator {
       }
 
       if (execution.plan.suiteId == QaSuiteId.register ||
-          execution.plan.suiteId == QaSuiteId.closeRegister) {
-        final registerSuite = QaSuiteRegistry.instance.get(
+          execution.plan.suiteId == QaSuiteId.closeRegister ||
+          execution.plan.suiteId == QaSuiteId.searchNOrder) {
+        final registeredSuite = QaSuiteRegistry.instance.get(
           execution.plan.suiteId,
         );
-        if (registerSuite != null) {
+        if (registeredSuite != null) {
           return await cancellation.race(
             cancellation.run(
-              () => registerSuite.execute(
+              () => registeredSuite.execute(
                 driver: DriverEngine(),
                 vmServiceUri: target.vmServiceUri,
                 execution: execution,

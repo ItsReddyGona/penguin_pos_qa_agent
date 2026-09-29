@@ -38,6 +38,7 @@ import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repositor
 import 'package:penguin_pos_qa_agent/domain/test_cases/login_test_case.dart';
 import 'package:penguin_pos_qa_agent/domain/test_cases/order_test_case.dart';
 import 'package:penguin_pos_qa_agent/domain/plan/execution_plan.dart';
+import 'package:penguin_pos_qa_agent/domain/suites/search_n_order_suite_scenarios.dart';
 import 'package:penguin_pos_qa_agent/runtime/app_target_handle.dart';
 import 'package:penguin_pos_qa_agent/runtime/ssh/ssh_connection_config.dart';
 import 'package:penguin_pos_qa_agent/runtime/ssh/ssh_preflight.dart';
@@ -78,7 +79,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   QaTargetMode _targetMode = QaTargetMode.local;
   String _flutterPath = 'flutter';
-  String _appRoot = '/Users/reddygona/Documents/PenguinPOS/penguin_pos';
+  String _appRoot = '';
   List<QaProfile> _profiles = QaProfile.values;
   QaProfile _profile = QaProfile.values.first;
   String _loginId = '';
@@ -270,9 +271,15 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         }
       });
     }
-    if ((savedFlutterPath == null || savedFlutterPath.isEmpty) &&
-        (savedAppRoot == null || savedAppRoot.isEmpty)) {
-      _refreshDetectedPaths();
+    final flutterValid = await PathDetector.isValidFlutterExecutable(
+      _flutterPath,
+    );
+    final appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+    if (!flutterValid || !appRootValid) {
+      await _refreshDetectedPaths(
+        updateFlutter: !flutterValid,
+        updateAppRoot: !appRootValid,
+      );
     }
   }
 
@@ -328,14 +335,31 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   /// Path checks touch the local file system and must not delay the first AI
   /// screen. The runner receives the detected values before it is invoked.
-  Future<void> _refreshDetectedPaths() async {
-    final flutterPath = await PathDetector.detectFlutterPath();
-    final appRoot = await PathDetector.detectAppRoot();
+  Future<void> _refreshDetectedPaths({
+    bool updateFlutter = true,
+    bool updateAppRoot = true,
+  }) async {
+    final flutterPath = updateFlutter
+        ? await PathDetector.detectFlutterPath()
+        : _flutterPath;
+    final appRoot = updateAppRoot
+        ? await PathDetector.detectAppRoot()
+        : _appRoot;
     if (!mounted) return;
     setState(() {
-      _flutterPath = flutterPath;
-      _appRoot = appRoot;
+      if (updateFlutter) _flutterPath = flutterPath;
+      if (updateAppRoot) _appRoot = appRoot;
     });
+    if (updateFlutter &&
+        flutterPath.isNotEmpty &&
+        await PathDetector.isValidFlutterExecutable(flutterPath)) {
+      await _preferences.saveFlutterPath(flutterPath);
+    }
+    if (updateAppRoot &&
+        appRoot.isNotEmpty &&
+        await PathDetector.isValidAppRoot(appRoot)) {
+      await _preferences.saveAppRoot(appRoot);
+    }
   }
 
   Future<void> _selectProfile(QaProfile profile) async {
@@ -1281,12 +1305,16 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
     profileId: _profile.id,
     suiteId: _selectedSuiteId == 'order_checkout'
         ? QaSuiteId.orderCheckout
+        : _selectedSuiteId == 'search_n_order'
+        ? QaSuiteId.searchNOrder
         : _selectedSuiteId == 'register'
         ? QaSuiteId.register
         : _selectedSuiteId == 'close_register'
         ? QaSuiteId.closeRegister
         : QaSuiteId.loginTerminal,
-    orderConfiguration: _selectedSuiteId == 'order_checkout'
+    orderConfiguration:
+        (_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order')
         ? OrderExecutionConfiguration(
             ordersCount: _orderScenario.ordersCount,
             itemStrategy:
@@ -1351,11 +1379,24 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
               flutterExecutableIsValid: true,
             );
           }
+          var flutterValid = await PathDetector.isValidFlutterExecutable(
+            _flutterPath,
+          );
+          var appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+          if (!flutterValid || !appRootValid) {
+            await _refreshDetectedPaths(
+              updateFlutter: !flutterValid,
+              updateAppRoot: !appRootValid,
+            );
+            flutterValid = await PathDetector.isValidFlutterExecutable(
+              _flutterPath,
+            );
+            appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+          }
           return RuntimeReadiness(
             localExecutionSupported: true,
-            appRootIsValid: await PathDetector.isValidAppRoot(_appRoot),
-            flutterExecutableIsValid:
-                await PathDetector.isValidFlutterExecutable(_flutterPath),
+            appRootIsValid: appRootValid,
+            flutterExecutableIsValid: flutterValid,
           );
         },
       ),
@@ -1384,7 +1425,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
     final shouldUseConfiguredOrderInputs =
         useConfiguredOrderInputs ??
         _activeInputSource == AiInputSource.settings;
-    if (_selectedSuiteId == 'order_checkout') {
+    if (_selectedSuiteId == 'order_checkout' ||
+        _selectedSuiteId == 'search_n_order') {
       final savedOrderItems = await _orderInputRepository.read(_profile.id);
       final savedOrderCases = await _orderCasesRepository.read(_profile.id);
       final activeOrderCase = await _resolveActiveOrderCase(
@@ -1418,8 +1460,22 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         });
       }
     }
+    final credentials = await _credentialVault.read(_profile.id);
+    final configuredCases = await _loginCasesRepository.readOrMigrateLegacy(
+      _profile.id,
+      credentials,
+    );
+    if (mounted) {
+      setState(() {
+        _loginId = credentials.loginId;
+        _password = credentials.password;
+        _unlockPin = credentials.unlockPin;
+        _configuredLoginCases = configuredCases;
+      });
+    }
     if (!skipPreflight && !await _runManualPreflight()) return;
-    if (_selectedSuiteId == 'order_checkout' &&
+    if ((_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order') &&
         _orderScenario.itemsForAllIterations().isEmpty) {
       _addMessage(
         'Order Inputs Required',
@@ -1499,7 +1555,9 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         _openingFloatAmount = registerInput.openingFloatAmount;
       });
     }
-    final orderScenario = _selectedSuiteId == 'order_checkout'
+    final orderScenario =
+        (_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order')
         ? OrderScenario(
             id: _orderScenario.id,
             name: _orderScenario.name,
@@ -1596,11 +1654,13 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
           _wasAppClosedByUser = result.wasAppClosedByUser;
           _scenariosCompletedSoFar = result.completedScenarios;
           if (orderResult?.passed == true) {
-            _scenariosCompletedSoFar = <String>[
-              'Start Sale & Customer Handling',
-              'SKU & Weighed Item Entry',
-              'Cash Payment & Round-Off',
-            ];
+            _scenariosCompletedSoFar = _selectedSuiteId == 'search_n_order'
+                ? SearchNOrderSuiteScenarios.all
+                : <String>[
+                    'Start Sale & Customer Handling',
+                    'SKU & Weighed Item Entry',
+                    'Cash Payment & Round-Off',
+                  ];
           }
           _lastExecutionDetails = result.passed
               ? orderResult != null
@@ -1748,7 +1808,9 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
             }
           }
 
-          final isOrderSuite = _selectedSuiteId == 'order_checkout';
+          final isOrderSuite =
+              _selectedSuiteId == 'order_checkout' ||
+              _selectedSuiteId == 'search_n_order';
           final allScenariosPassed = isOrderSuite
               ? (_lastOrderRunResult?.passed == true ||
                         _lastExecutionPassed == true) &&
@@ -2635,7 +2697,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   Widget _buildSuiteWorkspace() {
     final suite = _activeSuite;
-    if (_selectedSuiteId == 'order_checkout') {
+    if (_selectedSuiteId == 'order_checkout' ||
+        _selectedSuiteId == 'search_n_order') {
       return OrderSuiteScreen(
         suite: suite,
         currentProfile: _profile,

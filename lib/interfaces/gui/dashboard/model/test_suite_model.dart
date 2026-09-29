@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:penguin_pos_qa_agent/domain/suites/order_suite_scenarios.dart';
+import 'package:penguin_pos_qa_agent/domain/suites/search_n_order_suite_scenarios.dart';
 
 /// A prerequisite that must be satisfied before a scenario can be executed.
 ///
@@ -347,6 +348,175 @@ class TestSuiteItem {
             'place order',
             'order success',
           ],
+        ),
+      ],
+    ),
+    TestSuiteItem(
+      id: 'search_n_order',
+      title: 'SearchNOrder',
+      description:
+          'Searches items in catalog using Search items modal, adds products to cart with weight handling, and completes cash checkout.',
+      icon: Icons.search_rounded,
+      isImplemented: true,
+      feature: 'Order & Cash Payment',
+      purpose:
+          'Verify search modal lookup, item selection into cart, weight resolution, and cash checkout.',
+      searchAliases: <String>[
+        'search',
+        'search items',
+        'searchnorder',
+        'catalog',
+        'order',
+        'checkout',
+      ],
+      scenarios: <TestSuiteScenario>[
+        TestSuiteScenario(
+          id: 'sno_session_check',
+          name: SearchNOrderSuiteScenarios.session,
+          tags: <String>['session', 'auth', 'terminal'],
+          stepsDescription: <String>[
+            'Verify active POS session state via waitForAnyKey',
+            'If Login Screen is present, submit cashier credentials',
+            'Confirm terminal selection and transition to main Home screen',
+          ],
+          purpose:
+              'Establish an authenticated session and ensure terminal readiness.',
+          preconditions: <String>[
+            'PenguinPOS app is launched and reachable via driver.',
+          ],
+          expectedOutcomes: <String>[
+            'The main POS Home screen is active and ready for sale entry.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+          ],
+          searchAliases: <String>['session', 'auth', 'terminal'],
+        ),
+        TestSuiteScenario(
+          id: 'sno_start_sale',
+          name: SearchNOrderSuiteScenarios.startSale,
+          tags: <String>['sale', 'customer', 'order'],
+          stepsDescription: <String>[
+            'Navigate to Order screen (home.tab.order)',
+            'Verify Start Sale widget is visible',
+            'Handle customer selection (Continue with or without customer)',
+            'Confirm Order Table and quick actions are displayed',
+          ],
+          purpose:
+              'Initiate order transaction and proceed with customer details or proxy handling.',
+          preconditions: <String>[
+            'An authenticated session is ready at the home screen.',
+          ],
+          expectedOutcomes: <String>[
+            'The order table and quick action buttons are active for cart editing.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+          ],
+          searchAliases: <String>['start sale', 'customer', 'order screen'],
+        ),
+        TestSuiteScenario(
+          id: 'sno_search_items',
+          name: SearchNOrderSuiteScenarios.searchItems,
+          tags: <String>['search', 'modal', 'catalog'],
+          stepsDescription: <String>[
+            'Tap Search items quick action button (order.action.search_items)',
+            'Wait for Search dialog to appear',
+            'Enter SKU or product query in search input field',
+            'Submit search query and verify product cards appear in grid',
+          ],
+          purpose:
+              'Verify Search items dialog opens and renders search results correctly.',
+          preconditions: <String>[
+            'Cart is active and Search items button is enabled.',
+          ],
+          expectedOutcomes: <String>[
+            'Search results grid renders matching product items.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+            QaTestRequirement.configuredTestItems,
+          ],
+          searchAliases: <String>['search modal', 'search query', 'catalog'],
+        ),
+        TestSuiteScenario(
+          id: 'sno_add_to_cart',
+          name: SearchNOrderSuiteScenarios.addProductToCart,
+          tags: <String>['add_to_cart', 'weighed', 'scale'],
+          stepsDescription: <String>[
+            'Tap ADD button on target product card in search grid',
+            'Verify search modal dismisses and item is added to cart',
+            'If weighed item, enter weight via manual numpad or auto scale',
+            'Confirm line item is accepted in cart table',
+          ],
+          purpose:
+              'Verify adding searched item into cart and handling scale/weight input.',
+          preconditions: <String>[
+            'Target product is displayed in search results.',
+          ],
+          expectedOutcomes: <String>[
+            'Product line item is successfully added to cart table.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+            QaTestRequirement.configuredTestItems,
+          ],
+          searchAliases: <String>['add item', 'cart', 'weight entry'],
+        ),
+        TestSuiteScenario(
+          id: 'sno_cart_review',
+          name: SearchNOrderSuiteScenarios.cartReview,
+          tags: <String>['cart', 'summary', 'checkout'],
+          stepsDescription: <String>[
+            'Tap Update Cart (order.update_cart) to trigger backend price sync',
+            'Wait until Proceed To Pay button is active',
+            'Tap Proceed To Pay to transition to Payment Screen',
+            'Verify Total Payable amount on Bill Summary',
+          ],
+          purpose:
+              'Synchronize cart state and transition into payment method selection.',
+          preconditions: <String>[
+            'At least one SKU item has been added to the cart.',
+          ],
+          expectedOutcomes: <String>[
+            'The payment screen is displayed with total payable and tax breakdown.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+            QaTestRequirement.configuredTestItems,
+          ],
+          searchAliases: <String>['cart update', 'proceed to pay'],
+        ),
+        TestSuiteScenario(
+          id: 'sno_cash_checkout',
+          name: SearchNOrderSuiteScenarios.cashCheckout,
+          tags: <String>['payment', 'cash', 'round_off', 'success'],
+          stepsDescription: <String>[
+            'Select Cash Payment method',
+            'Read exact payable total and compute POS round-off cash tender',
+            'Enter cash tender digits via numpad',
+            'Tap Place Order to submit transaction',
+            'Verify Order Success Screen and complete summary',
+          ],
+          purpose:
+              'Verify cash round-off tender, transaction placement, and receipt generation.',
+          preconditions: <String>[
+            'Payment screen is active with valid payable amount.',
+          ],
+          expectedOutcomes: <String>[
+            'Cash payment is accepted and order success screen is confirmed.',
+          ],
+          requirements: <QaTestRequirement>[
+            QaTestRequirement.approvedNonProductionProfile,
+            QaTestRequirement.authenticatedSession,
+            QaTestRequirement.configuredTestItems,
+          ],
+          searchAliases: <String>['cash payment', 'round off', 'place order'],
         ),
       ],
     ),

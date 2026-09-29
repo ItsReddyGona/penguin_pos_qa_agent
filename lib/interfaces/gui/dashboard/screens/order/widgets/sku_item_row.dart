@@ -65,10 +65,12 @@ class SkuItemRow extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: isBizerba
                     ? 'Bizerba Barcode'
-                    : (isManual ? 'Numeric Code' : 'SKU Code'),
+                    : (isManual ? 'Numeric Code' : 'SKU Code or Item Name'),
                 hintText: isBizerba
                     ? 'e.g. 10000001W2.45'
-                    : (isManual ? 'e.g. 1001' : 'Enter SKU code'),
+                    : (isManual
+                          ? 'e.g. 1001'
+                          : 'Enter SKU code or search name'),
                 isDense: true,
                 border: const OutlineInputBorder(),
                 contentPadding: const EdgeInsets.symmetric(

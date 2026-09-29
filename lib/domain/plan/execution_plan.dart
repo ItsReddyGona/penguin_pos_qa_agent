@@ -7,12 +7,14 @@ import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 enum QaSuiteId {
   loginTerminal,
   orderCheckout,
+  searchNOrder,
   register,
   closeRegister;
 
   String get storageValue => switch (this) {
     QaSuiteId.loginTerminal => 'login_terminal',
     QaSuiteId.orderCheckout => 'order_checkout',
+    QaSuiteId.searchNOrder => 'search_n_order',
     QaSuiteId.register => 'register',
     QaSuiteId.closeRegister => 'close_register',
   };
@@ -20,6 +22,7 @@ enum QaSuiteId {
   static QaSuiteId? fromStorageValue(String value) => switch (value) {
     'login_terminal' => QaSuiteId.loginTerminal,
     'order_checkout' => QaSuiteId.orderCheckout,
+    'search_n_order' => QaSuiteId.searchNOrder,
     'register' => QaSuiteId.register,
     'close_register' => QaSuiteId.closeRegister,
     _ => null,
@@ -78,13 +81,14 @@ class OrderExecutionConfiguration {
     }
 
     for (final item in allItems) {
-      if (item.skuCode.trim().isEmpty) {
-        issues.add('Each order item needs an SKU code.');
+      if (item.skuCode.trim().isEmpty && item.name.trim().isEmpty) {
+        issues.add('Each order item needs an SKU code or item name.');
       }
       if (item.isWeighed &&
           item.weightInputMode != WeightInputMode.auto &&
           (item.weight == null || item.weight! <= 0)) {
-        issues.add('Weighed SKU ${item.skuCode} needs a positive weight.');
+        final identifier = item.skuCode.isNotEmpty ? item.skuCode : item.name;
+        issues.add('Weighed item $identifier needs a positive weight.');
       }
     }
 
@@ -147,7 +151,8 @@ class ExecutionPlan {
   final QaSuiteId suiteId;
   final OrderExecutionConfiguration? orderConfiguration;
 
-  bool get isOrder => suiteId == QaSuiteId.orderCheckout;
+  bool get isOrder =>
+      suiteId == QaSuiteId.orderCheckout || suiteId == QaSuiteId.searchNOrder;
 
   List<String> validate() {
     final issues = <String>[];

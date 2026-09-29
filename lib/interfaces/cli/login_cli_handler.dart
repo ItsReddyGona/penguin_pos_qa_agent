@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:penguin_pos_qa_agent/automation/login/login_runner.dart';
 import 'package:penguin_pos_qa_agent/automation/login/login_scenario.dart';
 import 'package:penguin_pos_qa_agent/runtime/app_launcher.dart';
+import 'package:penguin_pos_qa_agent/runtime/path_detector.dart';
 
 /// Handler encapsulating command-line arguments parsing, interactive stdin fallback, and test execution for login CLI subcommands.
 class LoginCliHandler {
@@ -17,7 +18,7 @@ class LoginCliHandler {
     var appRoot =
         values['app-root'] ??
         Platform.environment['PENGUIN_POS_ROOT'] ??
-        '/Users/reddygona/Documents/PenguinPOS/penguin_pos';
+        await PathDetector.detectAppRoot();
     final device = values['device'];
     final entity = values['entity'];
     final env = values['env'];

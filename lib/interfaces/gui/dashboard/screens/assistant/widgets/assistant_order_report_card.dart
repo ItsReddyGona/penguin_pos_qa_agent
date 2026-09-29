@@ -263,7 +263,7 @@ class _OrderResultCard extends StatelessWidget {
                   stageName: 'Payment',
                   detail:
                       'Cash Selected · Total: ₹${order.totalPayable.toStringAsFixed(2)} → Tendered: ₹${order.cashAmount}',
-                  passed: true,
+                  passed: order.passed,
                 ),
                 const Divider(height: 20, color: Color(0xFFF1F5F9)),
 
