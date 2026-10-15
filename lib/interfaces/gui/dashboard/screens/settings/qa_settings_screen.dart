@@ -8,6 +8,7 @@ import 'package:penguin_pos_qa_agent/domain/profiles/qa_profile.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_login_test_case_repository.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_order_input_repository.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_order_test_case_repository.dart';
+import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repository.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/model/qa_dashboard_models.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/repository/qa_target_preferences_repository.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/widgets/ai_models_settings_tab.dart';
@@ -68,6 +69,7 @@ class _QaSettingsScreenState extends State<QaSettingsScreen> {
   final _loginCasesRepo = SharedPreferencesQaLoginTestCaseRepository();
   final _orderInputRepo = SharedPreferencesQaOrderInputRepository();
   final _orderCasesRepo = SharedPreferencesQaOrderTestCaseRepository();
+  final _registerInputRepo = SharedPreferencesQaRegisterInputRepository();
 
   SettingsTab _activeTab = SettingsTab.credentials;
 
@@ -521,6 +523,8 @@ class _QaSettingsScreenState extends State<QaSettingsScreen> {
       saveOrderItems: _orderInputRepo.write,
       loadOrderCases: _orderCasesRepo.read,
       saveOrderCases: _orderCasesRepo.write,
+      loadRegisterInput: _registerInputRepo.read,
+      saveRegisterInput: _registerInputRepo.write,
       onProfileChanged: (profile) {
         setState(() => _selectedProfile = profile);
         widget.onProfileSelected(profile);

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:penguin_pos_qa_agent/runtime/app_launcher.dart';
+import 'package:penguin_pos_qa_agent/runtime/path_detector.dart';
 import 'package:penguin_pos_qa_agent/runtime/qa_profile_config.dart';
 
 class QaSession {
@@ -42,13 +43,14 @@ class QaSessionManager {
       throw ArgumentError('vm_service_uri is not a valid URI.');
     }
     LaunchedPenguinPos? launched;
+    final resolvedAppRoot =
+        appRoot ??
+        Platform.environment['PENGUIN_POS_ROOT'] ??
+        await PathDetector.detectAppRoot();
     final uri =
         suppliedUri ??
         (launched = await _launcher.launch(
-          appRoot:
-              appRoot ??
-              Platform.environment['PENGUIN_POS_ROOT'] ??
-              PenguinPosAppLauncher.defaultAppRoot,
+          appRoot: resolvedAppRoot,
           device: device,
           entity: profile.entity,
           env: profile.env,

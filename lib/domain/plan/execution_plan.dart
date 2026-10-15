@@ -6,16 +6,25 @@ import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 /// credentials, model prompts, driver commands, or UI-only state.
 enum QaSuiteId {
   loginTerminal,
-  orderCheckout;
+  orderCheckout,
+  searchNOrder,
+  register,
+  closeRegister;
 
   String get storageValue => switch (this) {
     QaSuiteId.loginTerminal => 'login_terminal',
     QaSuiteId.orderCheckout => 'order_checkout',
+    QaSuiteId.searchNOrder => 'search_n_order',
+    QaSuiteId.register => 'register',
+    QaSuiteId.closeRegister => 'close_register',
   };
 
   static QaSuiteId? fromStorageValue(String value) => switch (value) {
     'login_terminal' => QaSuiteId.loginTerminal,
     'order_checkout' => QaSuiteId.orderCheckout,
+    'search_n_order' => QaSuiteId.searchNOrder,
+    'register' => QaSuiteId.register,
+    'close_register' => QaSuiteId.closeRegister,
     _ => null,
   };
 }
@@ -32,12 +41,20 @@ class OrderExecutionConfiguration {
     this.itemStrategy = ExecutionItemStrategy.sameForAll,
     this.items = const <OrderItem>[],
     this.perIterationItems = const <int, List<OrderItem>>{},
+    this.customerMode = OrderCustomerMode.continueWithoutCustomer,
+    this.customerPhoneNumber,
+    this.customerName,
+    this.customerOtp,
   });
 
   final int ordersCount;
   final ExecutionItemStrategy itemStrategy;
   final List<OrderItem> items;
   final Map<int, List<OrderItem>> perIterationItems;
+  final OrderCustomerMode customerMode;
+  final String? customerPhoneNumber;
+  final String? customerName;
+  final String? customerOtp;
 
   Iterable<OrderItem> get allItems sync* {
     yield* items;
@@ -64,15 +81,24 @@ class OrderExecutionConfiguration {
     }
 
     for (final item in allItems) {
-      if (item.skuCode.trim().isEmpty) {
-        issues.add('Each order item needs an SKU code.');
+      if (item.skuCode.trim().isEmpty && item.name.trim().isEmpty) {
+        issues.add('Each order item needs an SKU code or item name.');
       }
       if (item.isWeighed &&
           item.weightInputMode != WeightInputMode.auto &&
           (item.weight == null || item.weight! <= 0)) {
-        issues.add('Weighed SKU ${item.skuCode} needs a positive weight.');
+        final identifier = item.skuCode.isNotEmpty ? item.skuCode : item.name;
+        issues.add('Weighed item $identifier needs a positive weight.');
       }
     }
+
+    if (customerMode == OrderCustomerMode.continueWithCustomer &&
+        (customerPhoneNumber == null || customerPhoneNumber!.trim().isEmpty)) {
+      issues.add(
+        'Customer phone number is required when customer mode is continue with customer.',
+      );
+    }
+
     return issues.toSet().toList(growable: false);
   }
 
@@ -81,11 +107,19 @@ class OrderExecutionConfiguration {
     ExecutionItemStrategy? itemStrategy,
     List<OrderItem>? items,
     Map<int, List<OrderItem>>? perIterationItems,
+    OrderCustomerMode? customerMode,
+    String? customerPhoneNumber,
+    String? customerName,
+    String? customerOtp,
   }) => OrderExecutionConfiguration(
     ordersCount: ordersCount ?? this.ordersCount,
     itemStrategy: itemStrategy ?? this.itemStrategy,
     items: items ?? this.items,
     perIterationItems: perIterationItems ?? this.perIterationItems,
+    customerMode: customerMode ?? this.customerMode,
+    customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+    customerName: customerName ?? this.customerName,
+    customerOtp: customerOtp ?? this.customerOtp,
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -98,6 +132,10 @@ class OrderExecutionConfiguration {
         orderItems.map((item) => item.toJson()).toList(growable: false),
       ),
     ),
+    'customerMode': customerMode.name,
+    if (customerPhoneNumber != null) 'customerPhoneNumber': customerPhoneNumber,
+    if (customerName != null) 'customerName': customerName,
+    if (customerOtp != null) 'customerOtp': customerOtp,
   };
 }
 
@@ -113,7 +151,8 @@ class ExecutionPlan {
   final QaSuiteId suiteId;
   final OrderExecutionConfiguration? orderConfiguration;
 
-  bool get isOrder => suiteId == QaSuiteId.orderCheckout;
+  bool get isOrder =>
+      suiteId == QaSuiteId.orderCheckout || suiteId == QaSuiteId.searchNOrder;
 
   List<String> validate() {
     final issues = <String>[];

@@ -10,17 +10,20 @@ import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/order/widg
 
 /// Helper container managing stateful TextEditingControllers per SKU item row.
 class SkuRowControllers {
-  SkuRowControllers({required String skuCode, double? weight})
+  SkuRowControllers({required String skuCode, String name = '', double? weight})
     : skuCodeController = TextEditingController(text: skuCode),
+      nameController = TextEditingController(text: name),
       weightController = TextEditingController(
         text: weight != null ? weight.toString() : '',
       );
 
   final TextEditingController skuCodeController;
+  final TextEditingController nameController;
   final TextEditingController weightController;
 
   void dispose() {
     skuCodeController.dispose();
+    nameController.dispose();
     weightController.dispose();
   }
 }

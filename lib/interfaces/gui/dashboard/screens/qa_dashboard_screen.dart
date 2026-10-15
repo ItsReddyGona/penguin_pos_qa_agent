@@ -23,6 +23,10 @@ import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/repository/qa_targ
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/widgets/side_nav.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/login/login_suite_screen.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/order/order_suite_screen.dart';
+import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/register/register_suite_screen.dart';
+import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/register/close_register_suite_screen.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_runner.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_scenario.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/assistant/ai_assistant_workspace.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/assistant/widgets/assistant_log_drawer.dart';
 import 'package:penguin_pos_qa_agent/interfaces/gui/dashboard/screens/settings/qa_settings_screen.dart';
@@ -30,9 +34,11 @@ import 'package:penguin_pos_qa_agent/domain/profiles/qa_credential_vault.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_order_input_repository.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_login_test_case_repository.dart';
 import 'package:penguin_pos_qa_agent/domain/profiles/qa_order_test_case_repository.dart';
+import 'package:penguin_pos_qa_agent/domain/profiles/qa_register_input_repository.dart';
 import 'package:penguin_pos_qa_agent/domain/test_cases/login_test_case.dart';
 import 'package:penguin_pos_qa_agent/domain/test_cases/order_test_case.dart';
 import 'package:penguin_pos_qa_agent/domain/plan/execution_plan.dart';
+import 'package:penguin_pos_qa_agent/domain/suites/search_n_order_suite_scenarios.dart';
 import 'package:penguin_pos_qa_agent/runtime/app_target_handle.dart';
 import 'package:penguin_pos_qa_agent/runtime/ssh/ssh_connection_config.dart';
 import 'package:penguin_pos_qa_agent/runtime/ssh/ssh_preflight.dart';
@@ -64,6 +70,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
   final _orderInputRepository = SharedPreferencesQaOrderInputRepository();
   final _loginCasesRepository = SharedPreferencesQaLoginTestCaseRepository();
   final _orderCasesRepository = SharedPreferencesQaOrderTestCaseRepository();
+  final _registerInputRepository = SharedPreferencesQaRegisterInputRepository();
   final _sshRemoteAppLauncher = SshRemoteAppLauncher();
 
   bool _preferencesLoaded = false;
@@ -72,7 +79,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   QaTargetMode _targetMode = QaTargetMode.local;
   String _flutterPath = 'flutter';
-  String _appRoot = '/Users/reddygona/Documents/PenguinPOS/penguin_pos';
+  String _appRoot = '';
   List<QaProfile> _profiles = QaProfile.values;
   QaProfile _profile = QaProfile.values.first;
   String _loginId = '';
@@ -89,6 +96,10 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
   String _selectedSuiteId = 'login_terminal';
   AiInputSource _activeInputSource = AiInputSource.settings;
   OrderScenario _orderScenario = OrderScenario.sampleScenario;
+  double _openingFloatAmount = 0.0;
+  double _closeTotalAmount = 1000.0;
+  Map<int, int> _closeNotesMap = const <int, int>{};
+  Map<int, int> _closeCoinsMap = const <int, int>{};
   bool _aiModeEnabled = true;
   final List<AiChatMessage> _aiChatMessages = <AiChatMessage>[];
   AiPendingRequest? _pendingAssistantRequest;
@@ -120,6 +131,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
   int _loginRepeatCount = 1;
   List<String> _scenariosCompletedSoFar = <String>[];
   OrderRunResult? _lastOrderRunResult;
+  RegisterRunResult? _lastRegisterRunResult;
   List<ApiTraceEvent> _apiTraces = const <ApiTraceEvent>[];
 
   // The runner can emit several events and telemetry snapshots for one driver
@@ -191,6 +203,9 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       savedOrderItems,
       savedOrderCases,
     );
+    final registerInput = await _registerInputRepository.read(
+      selectedProfile.id,
+    );
     // Existing users configured before this preference was introduced should
     // not see first-run setup again simply because the marker is new.
     if (!hasCompletedInitialSetup &&
@@ -214,6 +229,10 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       _sshPassword = sshPassword;
       _profiles = profiles;
       _profile = selectedProfile;
+      _openingFloatAmount = registerInput.openingFloatAmount;
+      _closeTotalAmount = registerInput.closeTotalAmount;
+      _closeNotesMap = registerInput.closeNotesMap;
+      _closeCoinsMap = registerInput.closeCoinsMap;
       if (activeOrderCase != null) {
         final orderCase = activeOrderCase;
         final matchingLoginCases = configuredCases
@@ -252,9 +271,15 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         }
       });
     }
-    if ((savedFlutterPath == null || savedFlutterPath.isEmpty) &&
-        (savedAppRoot == null || savedAppRoot.isEmpty)) {
-      _refreshDetectedPaths();
+    final flutterValid = await PathDetector.isValidFlutterExecutable(
+      _flutterPath,
+    );
+    final appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+    if (!flutterValid || !appRootValid) {
+      await _refreshDetectedPaths(
+        updateFlutter: !flutterValid,
+        updateAppRoot: !appRootValid,
+      );
     }
   }
 
@@ -310,14 +335,31 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   /// Path checks touch the local file system and must not delay the first AI
   /// screen. The runner receives the detected values before it is invoked.
-  Future<void> _refreshDetectedPaths() async {
-    final flutterPath = await PathDetector.detectFlutterPath();
-    final appRoot = await PathDetector.detectAppRoot();
+  Future<void> _refreshDetectedPaths({
+    bool updateFlutter = true,
+    bool updateAppRoot = true,
+  }) async {
+    final flutterPath = updateFlutter
+        ? await PathDetector.detectFlutterPath()
+        : _flutterPath;
+    final appRoot = updateAppRoot
+        ? await PathDetector.detectAppRoot()
+        : _appRoot;
     if (!mounted) return;
     setState(() {
-      _flutterPath = flutterPath;
-      _appRoot = appRoot;
+      if (updateFlutter) _flutterPath = flutterPath;
+      if (updateAppRoot) _appRoot = appRoot;
     });
+    if (updateFlutter &&
+        flutterPath.isNotEmpty &&
+        await PathDetector.isValidFlutterExecutable(flutterPath)) {
+      await _preferences.saveFlutterPath(flutterPath);
+    }
+    if (updateAppRoot &&
+        appRoot.isNotEmpty &&
+        await PathDetector.isValidAppRoot(appRoot)) {
+      await _preferences.saveAppRoot(appRoot);
+    }
   }
 
   Future<void> _selectProfile(QaProfile profile) async {
@@ -337,9 +379,14 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       savedOrderItems,
       savedOrderCases,
     );
+    final registerInput = await _registerInputRepository.read(profile.id);
     if (!mounted) return;
     setState(() {
       _profile = profile;
+      _openingFloatAmount = registerInput.openingFloatAmount;
+      _closeTotalAmount = registerInput.closeTotalAmount;
+      _closeNotesMap = registerInput.closeNotesMap;
+      _closeCoinsMap = registerInput.closeCoinsMap;
       _targetMode = sshTarget.enabled ? QaTargetMode.ssh : QaTargetMode.local;
       _sshUser = sshTarget.username;
       _sshHost = sshTarget.host;
@@ -367,6 +414,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       _unlockPin = credentials.unlockPin;
       _configuredLoginCases = configuredCases;
       _lastLoginSuiteResult = null;
+      _lastOrderRunResult = null;
+      _lastRegisterRunResult = null;
     });
     await _preferences.saveSelectedProfileId(profile.id);
   }
@@ -1256,8 +1305,16 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
     profileId: _profile.id,
     suiteId: _selectedSuiteId == 'order_checkout'
         ? QaSuiteId.orderCheckout
+        : _selectedSuiteId == 'search_n_order'
+        ? QaSuiteId.searchNOrder
+        : _selectedSuiteId == 'register'
+        ? QaSuiteId.register
+        : _selectedSuiteId == 'close_register'
+        ? QaSuiteId.closeRegister
         : QaSuiteId.loginTerminal,
-    orderConfiguration: _selectedSuiteId == 'order_checkout'
+    orderConfiguration:
+        (_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order')
         ? OrderExecutionConfiguration(
             ordersCount: _orderScenario.ordersCount,
             itemStrategy:
@@ -1266,6 +1323,10 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
                 : ExecutionItemStrategy.sameForAll,
             items: _orderScenario.items,
             perIterationItems: _orderScenario.perIterationItems,
+            customerMode: _orderScenario.customerMode,
+            customerPhoneNumber: _orderScenario.customerPhoneNumber,
+            customerName: _orderScenario.customerName,
+            customerOtp: _orderScenario.customerOtp,
           )
         : null,
   );
@@ -1318,11 +1379,24 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
               flutterExecutableIsValid: true,
             );
           }
+          var flutterValid = await PathDetector.isValidFlutterExecutable(
+            _flutterPath,
+          );
+          var appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+          if (!flutterValid || !appRootValid) {
+            await _refreshDetectedPaths(
+              updateFlutter: !flutterValid,
+              updateAppRoot: !appRootValid,
+            );
+            flutterValid = await PathDetector.isValidFlutterExecutable(
+              _flutterPath,
+            );
+            appRootValid = await PathDetector.isValidAppRoot(_appRoot);
+          }
           return RuntimeReadiness(
             localExecutionSupported: true,
-            appRootIsValid: await PathDetector.isValidAppRoot(_appRoot),
-            flutterExecutableIsValid:
-                await PathDetector.isValidFlutterExecutable(_flutterPath),
+            appRootIsValid: appRootValid,
+            flutterExecutableIsValid: flutterValid,
           );
         },
       ),
@@ -1351,7 +1425,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
     final shouldUseConfiguredOrderInputs =
         useConfiguredOrderInputs ??
         _activeInputSource == AiInputSource.settings;
-    if (_selectedSuiteId == 'order_checkout') {
+    if (_selectedSuiteId == 'order_checkout' ||
+        _selectedSuiteId == 'search_n_order') {
       final savedOrderItems = await _orderInputRepository.read(_profile.id);
       final savedOrderCases = await _orderCasesRepository.read(_profile.id);
       final activeOrderCase = await _resolveActiveOrderCase(
@@ -1385,8 +1460,22 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         });
       }
     }
+    final credentials = await _credentialVault.read(_profile.id);
+    final configuredCases = await _loginCasesRepository.readOrMigrateLegacy(
+      _profile.id,
+      credentials,
+    );
+    if (mounted) {
+      setState(() {
+        _loginId = credentials.loginId;
+        _password = credentials.password;
+        _unlockPin = credentials.unlockPin;
+        _configuredLoginCases = configuredCases;
+      });
+    }
     if (!skipPreflight && !await _runManualPreflight()) return;
-    if (_selectedSuiteId == 'order_checkout' &&
+    if ((_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order') &&
         _orderScenario.itemsForAllIterations().isEmpty) {
       _addMessage(
         'Order Inputs Required',
@@ -1460,7 +1549,15 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       },
     );
 
-    final orderScenario = _selectedSuiteId == 'order_checkout'
+    final registerInput = await _registerInputRepository.read(_profile.id);
+    if (mounted) {
+      setState(() {
+        _openingFloatAmount = registerInput.openingFloatAmount;
+      });
+    }
+    final orderScenario =
+        (_selectedSuiteId == 'order_checkout' ||
+            _selectedSuiteId == 'search_n_order')
         ? OrderScenario(
             id: _orderScenario.id,
             name: _orderScenario.name,
@@ -1474,6 +1571,22 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
             perIterationItems: _orderScenario.perIterationItems,
             rawJson: _orderScenario.rawJson,
             rawCsv: _orderScenario.rawCsv,
+            openingFloatAmount: registerInput.openingFloatAmount,
+            customerMode: _orderScenario.customerMode,
+            customerPhoneNumber: _orderScenario.customerPhoneNumber,
+            customerName: _orderScenario.customerName,
+            customerOtp: _orderScenario.customerOtp,
+          )
+        : null;
+    final registerScenario = _selectedSuiteId == 'register'
+        ? RegisterScenario(openingFloatAmount: registerInput.openingFloatAmount)
+        : _selectedSuiteId == 'close_register'
+        ? RegisterScenario(
+            id: 'close_register',
+            name: 'Close Register Flow',
+            closeTotalAmount: _closeTotalAmount,
+            closeNotesMap: _closeNotesMap,
+            closeCoinsMap: _closeCoinsMap,
           )
         : null;
     final preparedExecution = PreparedExecution(
@@ -1496,6 +1609,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       configuredLoginCases: _configuredLoginCases,
       loginRepeatCount: _loginRepeatCount,
       orderScenario: orderScenario,
+      registerScenario: registerScenario,
       telemetryCollector: telemetryCollector,
       noticeDisplayMode: _noticeDisplayMode,
     );
@@ -1518,6 +1632,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       stopwatch.stop();
       final loginResult = result.loginResult;
       final orderResult = result.orderResult;
+      final registerResult = result.registerResult;
       if (orderScenario != null) {
         _addMessage(
           'Order Inputs Loaded',
@@ -1529,6 +1644,7 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       if (mounted) {
         setState(() {
           _lastOrderRunResult = orderResult;
+          _lastRegisterRunResult = registerResult;
           _lastExecutionDuration = stopwatch.elapsed;
           _lastExecutionPassed = result.passed;
           _lastCleanupPassed = result.cleanupPassed;
@@ -1538,15 +1654,19 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
           _wasAppClosedByUser = result.wasAppClosedByUser;
           _scenariosCompletedSoFar = result.completedScenarios;
           if (orderResult?.passed == true) {
-            _scenariosCompletedSoFar = <String>[
-              'Start Sale & Customer Handling',
-              'SKU & Weighed Item Entry',
-              'Cash Payment & Round-Off',
-            ];
+            _scenariosCompletedSoFar = _selectedSuiteId == 'search_n_order'
+                ? SearchNOrderSuiteScenarios.all
+                : <String>[
+                    'Start Sale & Customer Handling',
+                    'SKU & Weighed Item Entry',
+                    'Cash Payment & Round-Off',
+                  ];
           }
           _lastExecutionDetails = result.passed
               ? orderResult != null
                     ? 'Punched ${orderResult.ordersCompleted} orders (${orderResult.totalItemsProcessed} total items). Aggregate payable: ₹${orderResult.aggregateTotalPayable.toStringAsFixed(2)} → Cash: ₹${orderResult.aggregatePayableAmount}.'
+                    : registerResult != null
+                    ? 'Successfully opened register with float amount ₹${registerResult.floatAmount}.'
                     : 'Successfully executed all scenarios: ${result.completedScenarios.join(', ')}.${result.cleanupPassed == false ? ' Cleanup failed; session isolation is not guaranteed.' : ''}'
               : (result.wasAppClosedByUser
                     ? _interruptionDetails(wasStopped: _stopRequested)
@@ -1569,6 +1689,28 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
               ? 'Punched ${orderResult.ordersCompleted} of ${orderResult.ordersTarget} orders (${orderResult.totalItemsProcessed} items) in ${stopwatch.elapsed.inSeconds}s (Cash: ₹${orderResult.aggregatePayableAmount}).'
               : (orderResult.error ?? 'Order checkout test failed.'),
           orderResult.passed ? QaActivityKind.success : QaActivityKind.error,
+        );
+      } else if (registerResult != null ||
+          _selectedSuiteId == 'register' ||
+          _selectedSuiteId == 'close_register') {
+        final isClose = _selectedSuiteId == 'close_register';
+        _addMessage(
+          result.passed
+              ? (isClose
+                    ? 'Close Register Suite Passed 🎉'
+                    : 'Open Register Suite Passed 🎉')
+              : (isClose
+                    ? 'Close Register Suite Failed ❌'
+                    : 'Open Register Suite Failed ❌'),
+          result.passed
+              ? (isClose
+                    ? 'Register closed successfully with total cash ₹${_closeTotalAmount.toInt()} in ${stopwatch.elapsed.inSeconds}s.'
+                    : 'Register opened successfully with float ₹${_openingFloatAmount.toInt()} in ${stopwatch.elapsed.inSeconds}s.')
+              : (result.error ??
+                    (isClose
+                        ? 'Close Register failed.'
+                        : 'Open Register failed.')),
+          result.passed ? QaActivityKind.success : QaActivityKind.error,
         );
       } else {
         final suite = loginResult?.suiteResult;
@@ -1666,7 +1808,9 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
             }
           }
 
-          final isOrderSuite = _selectedSuiteId == 'order_checkout';
+          final isOrderSuite =
+              _selectedSuiteId == 'order_checkout' ||
+              _selectedSuiteId == 'search_n_order';
           final allScenariosPassed = isOrderSuite
               ? (_lastOrderRunResult?.passed == true ||
                         _lastExecutionPassed == true) &&
@@ -2326,9 +2470,14 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         savedOrderItems,
         savedOrderCases,
       );
+      final registerInput = await _registerInputRepository.read(_profile.id);
       if (!mounted) return;
       setState(() {
         _showSettingsScreen = false;
+        _openingFloatAmount = registerInput.openingFloatAmount;
+        _closeTotalAmount = registerInput.closeTotalAmount;
+        _closeNotesMap = registerInput.closeNotesMap;
+        _closeCoinsMap = registerInput.closeCoinsMap;
         _targetMode = target.enabled ? QaTargetMode.ssh : QaTargetMode.local;
         _sshUser = target.username;
         _sshHost = target.host;
@@ -2548,7 +2697,8 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
 
   Widget _buildSuiteWorkspace() {
     final suite = _activeSuite;
-    if (_selectedSuiteId == 'order_checkout') {
+    if (_selectedSuiteId == 'order_checkout' ||
+        _selectedSuiteId == 'search_n_order') {
       return OrderSuiteScreen(
         suite: suite,
         currentProfile: _profile,
@@ -2569,6 +2719,58 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
         }),
         onRunSuite: _runSelectedSuite,
         onStopSuite: _stopRunningSuite,
+      );
+    }
+    if (_selectedSuiteId == 'close_register') {
+      return CloseRegisterSuiteScreen(
+        suite: suite,
+        currentProfile: _profile,
+        targetMode: _targetMode,
+        flutterPath: _flutterPath,
+        appRoot: _appRoot,
+        running: _running,
+        lastExecutionPassed: _lastExecutionPassed,
+        lastExecutionDuration: _lastExecutionDuration,
+        lastExecutionDetails: _lastExecutionDetails,
+        lastRegisterRunResult: _lastRegisterRunResult,
+        wasAppClosedByUser: _wasAppClosedByUser,
+        scenariosCompleted: _scenariosCompletedSoFar,
+        closeTotalAmount: _closeTotalAmount,
+        onTotalAmountChanged: (val) {
+          setState(() {
+            _closeTotalAmount = val;
+          });
+          _registerInputRepository.write(
+            _profile.id,
+            QaRegisterInput(
+              openingFloatAmount: _openingFloatAmount,
+              closeTotalAmount: val,
+            ),
+          );
+        },
+        onRunSuite: _runSelectedSuite,
+        onStopSuite: _stopRunningSuite,
+        onOpenSettings: _openSettingsDialog,
+      );
+    }
+    if (_selectedSuiteId == 'register') {
+      return RegisterSuiteScreen(
+        suite: suite,
+        currentProfile: _profile,
+        targetMode: _targetMode,
+        flutterPath: _flutterPath,
+        appRoot: _appRoot,
+        running: _running,
+        lastExecutionPassed: _lastExecutionPassed,
+        lastExecutionDuration: _lastExecutionDuration,
+        lastExecutionDetails: _lastExecutionDetails,
+        lastRegisterRunResult: _lastRegisterRunResult,
+        wasAppClosedByUser: _wasAppClosedByUser,
+        scenariosCompleted: _scenariosCompletedSoFar,
+        openingFloatAmount: _openingFloatAmount,
+        onRunSuite: _runSelectedSuite,
+        onStopSuite: _stopRunningSuite,
+        onOpenSettings: _openSettingsDialog,
       );
     }
     return LoginSuiteScreen(
@@ -2603,6 +2805,18 @@ class _QaDashboardScreenState extends State<QaDashboardScreen> {
       _lastExecutionDetails = null;
       _scenariosCompletedSoFar = <String>[];
     });
+    if (suiteId == 'register' || suiteId == 'close_register') {
+      _registerInputRepository.read(_profile.id).then((input) {
+        if (mounted) {
+          setState(() {
+            _openingFloatAmount = input.openingFloatAmount;
+            _closeTotalAmount = input.closeTotalAmount;
+            _closeNotesMap = input.closeNotesMap;
+            _closeCoinsMap = input.closeCoinsMap;
+          });
+        }
+      });
+    }
   }
 
   void _showCustomSuiteBuilderNotice() {

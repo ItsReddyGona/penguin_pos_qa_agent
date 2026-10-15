@@ -1,9 +1,22 @@
 /// Stable widget keys forming the Order & Cash Payment QA contract with PenguinPOS.
 abstract final class PenguinPosOrderKeys {
   static const homeOrderTab = 'home.tab.order';
+  static const homeRegisterTab = 'home.tab.register';
   static const orderScreen = 'order.screen';
+  static const orderRegisterClosed = 'order.register.closed';
+  static const orderOpenRegister = 'order.open_register';
   static const orderSaleStart = 'order.sale.start';
   static const continueWithoutCustomer = 'sale.continuewithoutcustomer';
+  static const addCustomerDetails = 'sale.add_customer_details';
+  static const customerPhoneInput = 'sale.customer.phone_input';
+  static const customerSearchButton = 'sale.customer.search_button';
+  static const customerNameInput = 'sale.customer.name_input';
+  static const customerSubmitButton = 'sale.customer.submit_button';
+  static const customerStatusText = 'sale.customer.status_text';
+  static const customerOtpInput = 'sale.customer.otp_input';
+  static const customerOtpVerifyButton = 'sale.customer.otp_verify_button';
+  static const customerHeaderName = 'order.customer_header.name';
+  static const customerHeaderPhone = 'order.customer_header.phone';
   static const orderTable = 'order.table';
   static const orderNumPadSection = 'order.numpad.section';
   static const orderInputCode = 'order.code.input';
@@ -26,10 +39,22 @@ abstract final class PenguinPosOrderKeys {
   static const orderNumPadEnter = 'order.numpad.enter';
   static const orderKeyboardToggle = 'order.keyboard.toggle';
   static String orderQwertyKey(String char) => 'order.qwerty.key.$char';
+  static const orderQwertySpace = 'order.qwerty.space';
   static const orderQwertyEnter = 'order.qwerty.enter';
 
   static const orderUpdateCart = 'order.update_cart';
   static const orderProceedToPay = 'order.proceed_to_pay';
+
+  // Search items flow keys
+  static const orderSearchItemsButton = 'order.action.search_items';
+  static const searchDialog = 'search.dialog';
+  static const searchTextInput = 'search.input.text';
+  static const searchSubmitButton = 'search.action.submit';
+  static const searchCloseButton = 'search.action.close';
+  static String searchProductAdd(String sku) =>
+      'search.product.add.${sku.trim()}';
+  static const searchProductAddFirst = 'search.product.add.first';
+  static String searchCategory(String name) => 'search.category.${name.trim()}';
 
   static const paymentScreen = 'payment.screen';
   static const billSummaryTotalPayable = 'bill_summary.total_payable';

@@ -94,18 +94,40 @@ enum UiCustomMode {
   }
 }
 
+/// Customer path used by an order test case.
+enum OrderCustomerMode {
+  continueWithoutCustomer('Continue without customer'),
+  continueWithCustomer('Continue with customer');
+
+  const OrderCustomerMode(this.label);
+  final String label;
+
+  static OrderCustomerMode fromString(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == 'continuewithcustomer' ||
+        normalized == 'continue_with_customer' ||
+        normalized == 'withcustomer' ||
+        normalized == 'with_customer') {
+      return OrderCustomerMode.continueWithCustomer;
+    }
+    return OrderCustomerMode.continueWithoutCustomer;
+  }
+}
+
 /// Single SKU item entry for an order automation test scenario.
 class OrderItem {
   static final RegExp _numericBizerbaPattern = RegExp(r'^\d{8}\.\d{3}$');
-  static final RegExp _shortCodePattern = RegExp(r'^\d{1,3}$');
+  static final RegExp _shortCodePattern = RegExp(r'^\d{1,4}$');
 
   const OrderItem({
     required this.skuCode,
+    this.name = '',
     this.type = SkuItemType.nonWeighed,
     this.weight,
     this.weightInputMode = WeightInputMode.manual,
     this.entryMode = ItemEntryMode.scan,
     this.rowId = '',
+    this.searchQuery,
   });
 
   static int _rowSequence = 0;
@@ -115,10 +137,12 @@ class OrderItem {
   /// row's text-field and dropdown state after add/remove operations.
   factory OrderItem.draft({
     String skuCode = '',
+    String name = '',
     SkuItemType type = SkuItemType.nonWeighed,
     double? weight,
     WeightInputMode weightInputMode = WeightInputMode.manual,
     ItemEntryMode entryMode = ItemEntryMode.scan,
+    String? searchQuery,
   }) {
     _rowSequence++;
     final cleanCode = skuCode.trim();
@@ -126,20 +150,24 @@ class OrderItem {
 
     return OrderItem(
       skuCode: skuCode,
+      name: name,
       type: resolvedType,
       weight: weight,
       weightInputMode: weightInputMode,
       entryMode: entryMode,
       rowId: 'sku-${DateTime.now().microsecondsSinceEpoch}-$_rowSequence',
+      searchQuery: searchQuery,
     );
   }
 
   final String skuCode;
+  final String name;
   final SkuItemType type;
   final double? weight;
   final WeightInputMode weightInputMode;
   final ItemEntryMode entryMode;
   final String rowId;
+  final String? searchQuery;
 
   /// The type after applying the barcode contract.
   ///
@@ -207,7 +235,10 @@ class OrderItem {
 
   Map<String, Object?> toJson() => <String, Object?>{
     'skuCode': skuCode,
+    if (name.isNotEmpty) 'name': name,
     if (rowId.isNotEmpty) 'rowId': rowId,
+    if (searchQuery != null && searchQuery!.isNotEmpty)
+      'searchQuery': searchQuery,
     'type': effectiveType.name,
     'entryMode': effectiveEntryMode.name,
     'weightInputMode': weightInputMode.name,
@@ -226,6 +257,10 @@ class OrderItem {
         ((json['isBizerba'] ?? json['is_bizerba']) as bool?) ?? false;
     final rawSkuCode =
         '${json['skuCode'] ?? json['sku_code'] ?? json['code'] ?? ''}';
+    final nameStr =
+        '${json['name'] ?? json['productName'] ?? json['skuTitle'] ?? ''}';
+    final rawSearchQuery =
+        (json['searchQuery'] ?? json['search_query']) as String?;
     final cleanCode = rawSkuCode.trim();
 
     final requestedType = typeStr != null
@@ -239,6 +274,7 @@ class OrderItem {
 
     return OrderItem(
       skuCode: rawSkuCode,
+      name: nameStr,
       type: resolvedType,
       weight:
           ((json['weight'] ?? json['weight_kg'] ?? json['weightKg']) as num?)
@@ -250,34 +286,72 @@ class OrderItem {
       rowId:
           ((json['rowId'] ?? json['row_id']) as String?) ??
           OrderItem.draft().rowId,
+      searchQuery: rawSearchQuery,
     );
   }
 
   static const Object _weightSentinel = Object();
+  static const Object _searchQuerySentinel = Object();
 
   OrderItem copyWith({
     String? skuCode,
+    String? name,
     SkuItemType? type,
     Object? weight = _weightSentinel,
     WeightInputMode? weightInputMode,
     ItemEntryMode? entryMode,
     String? rowId,
+    Object? searchQuery = _searchQuerySentinel,
   }) {
     final newSkuCode = skuCode ?? this.skuCode;
+    final newName = name ?? this.name;
     final resolvedType = type ?? this.type;
 
     final double? resolvedWeight = resolvedType == SkuItemType.weighed
         ? (identical(weight, _weightSentinel) ? this.weight : weight as double?)
         : null;
 
+    final String? resolvedSearchQuery =
+        identical(searchQuery, _searchQuerySentinel)
+        ? this.searchQuery
+        : searchQuery as String?;
+
     return OrderItem(
       skuCode: newSkuCode,
+      name: newName,
       type: resolvedType,
       weight: resolvedWeight,
       weightInputMode: weightInputMode ?? this.weightInputMode,
       entryMode: entryMode ?? this.entryMode,
       rowId: rowId ?? this.rowId,
+      searchQuery: resolvedSearchQuery,
     );
+  }
+
+  /// Resolves the effective search query to enter into the Search items modal.
+  /// Precedence:
+  /// 1. Explicit [searchQuery] if provided.
+  /// 2. If [skuCode] is a short code (1-4 digits), use it as short code search.
+  /// 3. If [entryMode] is [ItemEntryMode.manualQwerty] and [name] is non-empty, search by item name.
+  /// 4. If [skuCode] is non-empty, search by SKU.
+  /// 5. Fallback to [name].
+  String resolveSearchQuery() {
+    final explicit = searchQuery?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      return explicit;
+    }
+    final sku = skuCode.trim();
+    final itemName = name.trim();
+    if (sku.isNotEmpty && isShortCode(sku)) {
+      return sku;
+    }
+    if (entryMode == ItemEntryMode.manualQwerty && itemName.isNotEmpty) {
+      return itemName;
+    }
+    if (sku.isNotEmpty) {
+      return sku;
+    }
+    return itemName;
   }
 }
 
@@ -296,6 +370,11 @@ class OrderScenario {
     this.perIterationItems = const <int, List<OrderItem>>{},
     this.rawJson = defaultSampleJson,
     this.rawCsv = defaultSampleCsv,
+    this.openingFloatAmount = 0.0,
+    this.customerMode = OrderCustomerMode.continueWithoutCustomer,
+    this.customerPhoneNumber,
+    this.customerName,
+    this.customerOtp,
   });
 
   final String id;
@@ -310,6 +389,51 @@ class OrderScenario {
   final Map<int, List<OrderItem>> perIterationItems;
   final String rawJson;
   final String rawCsv;
+  final double openingFloatAmount;
+  final OrderCustomerMode customerMode;
+  final String? customerPhoneNumber;
+  final String? customerName;
+  final String? customerOtp;
+
+  OrderScenario copyWith({
+    String? id,
+    String? name,
+    String? loginId,
+    String? password,
+    String? unlockPin,
+    List<OrderItem>? items,
+    int? ordersCount,
+    InputSourceMode? inputSourceMode,
+    UiCustomMode? uiCustomMode,
+    Map<int, List<OrderItem>>? perIterationItems,
+    String? rawJson,
+    String? rawCsv,
+    double? openingFloatAmount,
+    OrderCustomerMode? customerMode,
+    String? customerPhoneNumber,
+    String? customerName,
+    String? customerOtp,
+  }) {
+    return OrderScenario(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      loginId: loginId ?? this.loginId,
+      password: password ?? this.password,
+      unlockPin: unlockPin ?? this.unlockPin,
+      items: items ?? this.items,
+      ordersCount: ordersCount ?? this.ordersCount,
+      inputSourceMode: inputSourceMode ?? this.inputSourceMode,
+      uiCustomMode: uiCustomMode ?? this.uiCustomMode,
+      perIterationItems: perIterationItems ?? this.perIterationItems,
+      rawJson: rawJson ?? this.rawJson,
+      rawCsv: rawCsv ?? this.rawCsv,
+      openingFloatAmount: openingFloatAmount ?? this.openingFloatAmount,
+      customerMode: customerMode ?? this.customerMode,
+      customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+      customerName: customerName ?? this.customerName,
+      customerOtp: customerOtp ?? this.customerOtp,
+    );
+  }
 
   static final OrderScenario sampleScenario = OrderScenario(
     id: 'order_cash_payment_default',
@@ -490,7 +614,12 @@ class OrderScenario {
     for (final iterationItems in perIterationItems.values) {
       all.addAll(iterationItems);
     }
-    return all.where((item) => item.skuCode.trim().isNotEmpty).toList();
+    return all
+        .where(
+          (item) =>
+              item.skuCode.trim().isNotEmpty || item.name.trim().isNotEmpty,
+        )
+        .toList();
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -507,6 +636,11 @@ class OrderScenario {
     ),
     'rawJson': rawJson,
     'rawCsv': rawCsv,
+    'openingFloatAmount': openingFloatAmount,
+    'customerMode': customerMode.name,
+    if (customerPhoneNumber != null) 'customerPhoneNumber': customerPhoneNumber,
+    if (customerName != null) 'customerName': customerName,
+    if (customerOtp != null) 'customerOtp': customerOtp,
   };
 
   factory OrderScenario.fromJson(Map<String, Object?> json) {
@@ -544,6 +678,14 @@ class OrderScenario {
       perIterationItems: perIterationItems,
       rawJson: (json['rawJson'] as String?) ?? defaultSampleJson,
       rawCsv: (json['rawCsv'] as String?) ?? defaultSampleCsv,
+      openingFloatAmount:
+          (json['openingFloatAmount'] as num?)?.toDouble() ?? 0.0,
+      customerMode: OrderCustomerMode.fromString(
+        json['customerMode'] as String?,
+      ),
+      customerPhoneNumber: json['customerPhoneNumber'] as String?,
+      customerName: json['customerName'] as String?,
+      customerOtp: json['customerOtp'] as String?,
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:penguin_pos_qa_agent/automation/order/order_keys.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_run_state.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_scenario.dart';
 import 'package:penguin_pos_qa_agent/automation/order/order_state_snapshot.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_keys.dart';
 
 class FakeOrderDriver implements Driver {
   final List<String> tappedKeys = <String>[];
@@ -135,6 +136,23 @@ class FakeOrderDriver implements Driver {
   }
 
   @override
+  Future<void> tapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+  }
+
+  @override
+  Future<bool> tryTapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+    return true;
+  }
+
+  @override
   Future<void> enterText(
     String key,
     String text, {
@@ -223,6 +241,144 @@ void main() {
           state.stepMetrics.first.stepName,
           equals('Start Sale & Customer Selection'),
         );
+      },
+    );
+
+    test(
+      'StartSaleBlock detects register closed, clicks open register, runs OpenRegisterBlock, and proceeds to start sale',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderOpenRegister] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.registerScreen] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.inputOpeningFloat] = true;
+        driver.activeKeys[PenguinPosRegisterKeys.registerSubmit] = true;
+        driver.activeKeys[PenguinPosOrderKeys.orderScreen] = true;
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_reg',
+          name: 'Register Recovery Test',
+          items: [],
+          openingFloatAmount: 1500.0,
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.orderOpenRegister),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosRegisterKeys.inputOpeningFloat),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosRegisterKeys.inputOpeningFloat}:1500'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosRegisterKeys.registerSubmit),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.continueWithoutCustomer),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock handles continueWithCustomer without OTP when valid phone is provided',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        driver.activeKeys[PenguinPosOrderKeys.addCustomerDetails] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerPhoneInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSearchButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSubmitButton] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_cust',
+          name: 'Customer Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '9876543210',
+          customerName: 'John Doe',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.addCustomerDetails),
+        );
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosOrderKeys.customerPhoneInput}:9876543210'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerSearchButton),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerSubmitButton),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock handles continueWithCustomer with OTP verification',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        driver.activeKeys[PenguinPosOrderKeys.addCustomerDetails] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerPhoneInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSearchButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerSubmitButton] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerOtpInput] = true;
+        driver.activeKeys[PenguinPosOrderKeys.customerOtpVerifyButton] = true;
+
+        final scenario = const OrderScenario(
+          id: 's_cust_otp',
+          name: 'Customer OTP Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '9876543210',
+          customerOtp: '1234',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        await block.execute(context);
+
+        expect(
+          driver.enteredTexts,
+          contains('${PenguinPosOrderKeys.customerOtpInput}:1234'),
+        );
+        expect(
+          driver.tappedKeys,
+          contains(PenguinPosOrderKeys.customerOtpVerifyButton),
+        );
+      },
+    );
+
+    test(
+      'StartSaleBlock throws StateError when continueWithCustomer has empty phone',
+      () async {
+        driver.activeKeys[PenguinPosOrderKeys.orderSaleStart] = true;
+        final scenario = const OrderScenario(
+          id: 's_cust_err',
+          name: 'Customer Error Test',
+          items: [],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '',
+        );
+        final state = OrderRunState(orderIndex: 1, scenario: scenario);
+
+        final block = StartSaleBlock(state: state);
+        expect(() => block.execute(context), throwsStateError);
       },
     );
 

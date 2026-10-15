@@ -185,6 +185,23 @@ class FakeDriverEngine implements Driver {
   }) async => true;
 
   @override
+  Future<void> tapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+  }
+
+  @override
+  Future<bool> tryTapByType(
+    String type, {
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    tappedKeys.add('type:$type');
+    return true;
+  }
+
+  @override
   Future<String?> requestData(
     String message, {
     Duration timeout = const Duration(seconds: 5),

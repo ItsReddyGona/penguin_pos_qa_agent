@@ -6,6 +6,7 @@ class PathDetector {
   static Future<String> detectFlutterPath() async {
     final home = Platform.environment['HOME'] ?? '';
     final candidates = <String>[
+      if (home.isNotEmpty) '$home/Documents/flutter/bin/flutter',
       '/opt/homebrew/bin/flutter',
       '/usr/local/bin/flutter',
       if (home.isNotEmpty) '$home/.fvm/default/bin/flutter',
@@ -37,7 +38,7 @@ class PathDetector {
   static Future<String> detectAppRoot() async {
     final home = Platform.environment['HOME'] ?? '';
     final candidates = <String>[
-      '/Users/reddygona/Documents/PenguinPOS/penguin_pos',
+      if (home.isNotEmpty) '$home/penguin_pos',
       if (home.isNotEmpty) '$home/Documents/PenguinPOS/penguin_pos',
       if (home.isNotEmpty) '$home/Documents/penguin_pos',
       if (home.isNotEmpty) '$home/Documents/PenguinPOS_App',
@@ -54,7 +55,7 @@ class PathDetector {
       }
     }
 
-    return candidates.first;
+    return candidates.isNotEmpty ? candidates.first : '';
   }
 
   /// Verifies if a given Flutter executable path is valid.

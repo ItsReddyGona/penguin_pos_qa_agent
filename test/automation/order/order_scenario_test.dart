@@ -189,5 +189,43 @@ void main() {
       });
       expect(defaultSku.effectiveEntryMode, ItemEntryMode.scan);
     });
+
+    test(
+      'OrderScenario supports continueWithCustomer serialization and defaults',
+      () {
+        const defaultScenario = OrderScenario(
+          id: 'order_default',
+          name: 'Default Customer Mode',
+          items: <OrderItem>[],
+        );
+        expect(
+          defaultScenario.customerMode,
+          OrderCustomerMode.continueWithoutCustomer,
+        );
+        expect(defaultScenario.customerPhoneNumber, isNull);
+
+        const customerScenario = OrderScenario(
+          id: 'order_with_customer',
+          name: 'With Customer Mode',
+          items: <OrderItem>[OrderItem(skuCode: '101')],
+          customerMode: OrderCustomerMode.continueWithCustomer,
+          customerPhoneNumber: '9876543210',
+          customerName: 'Test Customer',
+          customerOtp: '1234',
+        );
+
+        final json = customerScenario.toJson();
+        expect(json['customerMode'], 'continueWithCustomer');
+        expect(json['customerPhoneNumber'], '9876543210');
+        expect(json['customerName'], 'Test Customer');
+        expect(json['customerOtp'], '1234');
+
+        final restored = OrderScenario.fromJson(json);
+        expect(restored.customerMode, OrderCustomerMode.continueWithCustomer);
+        expect(restored.customerPhoneNumber, '9876543210');
+        expect(restored.customerName, 'Test Customer');
+        expect(restored.customerOtp, '1234');
+      },
+    );
   });
 }

@@ -1,13 +1,23 @@
+import 'package:penguin_pos_qa_agent/automation/register/close_register_suite_definition.dart';
+import 'package:penguin_pos_qa_agent/automation/register/register_suite_definition.dart';
 import 'package:penguin_pos_qa_agent/domain/plan/execution_plan.dart';
 import 'package:penguin_pos_qa_agent/domain/suites/qa_suite_definition.dart';
+import 'package:penguin_pos_qa_agent/domain/suites/search_n_order_suite_definition.dart';
 
 /// Registry maintaining available test suite implementations in the QA Agent.
 class QaSuiteRegistry {
   QaSuiteRegistry._();
 
-  static final QaSuiteRegistry instance = QaSuiteRegistry._();
+  static final QaSuiteRegistry instance = QaSuiteRegistry._()
+    .._registerDefaults();
 
   final Map<QaSuiteId, QaSuiteDefinition> _registry = {};
+
+  void _registerDefaults() {
+    register(const RegisterSuiteDefinition());
+    register(const CloseRegisterSuiteDefinition());
+    register(const SearchNOrderSuiteDefinition());
+  }
 
   /// Registers a new suite definition into the system.
   void register(QaSuiteDefinition suite) {
